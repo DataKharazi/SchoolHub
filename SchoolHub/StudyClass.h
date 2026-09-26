@@ -15,6 +15,7 @@
 #include "Book.h"
 #include "Assignment.h"
 #include "Exam.h"
+#include "ClassMeeting.h"
 
 using namespace std;
 
@@ -33,6 +34,7 @@ private:
 	vector<Assignment> assignments;
 	vector<Book> books;
 	vector<Exam> exams;
+	vector<ClassMeeting> classMeetings;
 
 public:
 	StudyClass();
@@ -55,9 +57,11 @@ public:
 	void addAssignment(Assignment assignment);
 	void addBook(Book book);
 	void addExam(Exam exam);
+	void addClassMeeting(ClassMeeting classMeeting);
 
 	vector<double> getGrades() const;
 	vector<Assignment> getAssignments() const;
 	vector<Book> getBooks() const;
 	vector<Exam> getExams() const;
+	vector<ClassMeeting> getClassMeetings() const;
 };

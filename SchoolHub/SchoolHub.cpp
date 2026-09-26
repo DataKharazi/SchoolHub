@@ -4,6 +4,7 @@
 	Author: David Kharazi
 	Date: 26 September 2026
 */
+
 #include <iostream>
 
 #include "Date.h"
@@ -12,6 +13,10 @@
 #include "Exam.h"
 #include "StudyClass.h"
 #include "Student.h"
+#include "Time.h"
+#include "ClassMeeting.h"
+
+using namespace std;
 
 using namespace std;
 
@@ -24,6 +29,29 @@ string statusToString(AssignmentStatus status)
 		return "Overdue";
 
 	return "Active";
+}
+
+string weekDayToString(WeekDay weekDay)
+{
+	if (weekDay == WeekDay::Monday)
+		return "Monday";
+
+	if (weekDay == WeekDay::Tuesday)
+		return "Tuesday";
+
+	if (weekDay == WeekDay::Wednesday)
+		return "Wednesday";
+
+	if (weekDay == WeekDay::Thursday)
+		return "Thursday";
+
+	if (weekDay == WeekDay::Friday)
+		return "Friday";
+
+	if (weekDay == WeekDay::Saturday)
+		return "Saturday";
+
+	return "Sunday";
 }
 
 int main()
@@ -77,10 +105,28 @@ int main()
 		semesterEnd
 	);
 
+	// Class meetings
+	ClassMeeting mondayMeeting(
+		WeekDay::Monday,
+		Time(11, 30),
+		Time(12, 45)
+	);
+
+	ClassMeeting wednesdayMeeting(
+		WeekDay::Wednesday,
+		Time(11, 30),
+		Time(12, 45)
+	);
+
+	cs3700.addClassMeeting(mondayMeeting);
+	cs3700.addClassMeeting(wednesdayMeeting);
+
 	cs3700.addBook(book);
+
 	cs3700.addAssignment(assignment1);
 	cs3700.addAssignment(assignment2);
 	cs3700.addAssignment(assignment3);
+
 	cs3700.addExam(exam);
 
 	cs3700.addGrade(95);
@@ -100,17 +146,38 @@ int main()
 	for (StudyClass studyClass : student.getStudyClasses())
 	{
 		cout << "\n" << studyClass.getClassName() << endl;
+
 		cout << "Organization: "
-			<< studyClass.getOrganizationName() << endl;
+			<< studyClass.getOrganizationName()
+			<< endl;
 
 		cout << "Credits: "
-			<< studyClass.getCredits() << endl;
+			<< studyClass.getCredits()
+			<< endl;
+
+		cout << "\nClass Schedule:" << endl;
+
+		for (ClassMeeting meeting : studyClass.getClassMeetings())
+		{
+			cout << "- "
+				<< weekDayToString(meeting.getWeekDay())
+				<< " | "
+				<< meeting.getStartTime().getHour()
+				<< ":"
+				<< meeting.getStartTime().getMinute()
+				<< " - "
+				<< meeting.getEndTime().getHour()
+				<< ":"
+				<< meeting.getEndTime().getMinute()
+				<< endl;
+		}
 
 		cout << "\nBooks:" << endl;
 
 		for (Book currentBook : studyClass.getBooks())
 		{
-			cout << "- " << currentBook.getBookName()
+			cout << "- "
+				<< currentBook.getBookName()
 				<< " | Bookmark: "
 				<< currentBook.getBookMark()
 				<< endl;

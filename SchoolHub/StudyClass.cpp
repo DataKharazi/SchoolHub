@@ -1,4 +1,3 @@
-#include "StudyClass.h"
 /*
 	Name: StudyClass.cpp
 	Copyright: David Kharazi 2026
@@ -96,6 +95,11 @@ void StudyClass::addExam(Exam exam)
 	exams.push_back(exam);
 }
 
+void StudyClass::addClassMeeting(ClassMeeting classMeeting)
+{
+	classMeetings.push_back(classMeeting);
+}
+
 vector<double> StudyClass::getGrades() const
 {
 	return grades;
@@ -114,4 +118,9 @@ vector<Book> StudyClass::getBooks() const
 vector<Exam> StudyClass::getExams() const
 {
 	return exams;
+}
+
+vector<ClassMeeting> StudyClass::getClassMeetings() const
+{
+	return classMeetings;
 }
