@@ -139,7 +139,21 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Assignment.cpp" />
+    <ClCompile Include="Book.cpp" />
+    <ClCompile Include="Date.cpp" />
+    <ClCompile Include="Exam.cpp" />
     <ClCompile Include="SchoolHub.cpp" />
+    <ClCompile Include="Student.cpp" />
+    <ClCompile Include="StudyClass.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Assignment.h" />
+    <ClInclude Include="Book.h" />
+    <ClInclude Include="Date.h" />
+    <ClInclude Include="Exam.h" />
+    <ClInclude Include="Student.h" />
+    <ClInclude Include="StudyClass.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
