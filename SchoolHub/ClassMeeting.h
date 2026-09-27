@@ -9,17 +9,7 @@
 #pragma once
 
 #include "Time.h"
-
-enum class WeekDay
-{
-	Monday,
-	Tuesday,
-	Wednesday,
-	Thursday,
-	Friday,
-	Saturday,
-	Sunday
-};
+#include "WeekDay.h"
 
 class ClassMeeting
 {

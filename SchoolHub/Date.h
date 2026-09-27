@@ -1,4 +1,4 @@
-/*
+/*/*
 	Name: Date.h
 	Copyright: David Kharazi 2026
 	Author: David Kharazi
@@ -7,6 +7,8 @@
 */
 
 #pragma once
+
+#include "WeekDay.h"
 
 class Date
 {
@@ -26,6 +28,9 @@ public:
 	int getYear() const;
 	int getMonth() const;
 	int getDay() const;
+
+	WeekDay getWeekDay() const;
+	Date getNextDay() const;
 
 	bool operator==(const Date& other) const;
 	bool operator<(const Date& other) const;
