@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="SchoolHub.vcxproj" />
+  <Project Path="SchoolHub.vcxproj" Id="3ee9f706-8835-45df-a2b4-f459f4348843" />
 </Solution>

@@ -11,7 +11,7 @@
 #include <string>
 
 #include "ConsoleDemo.h"
-
+#include "Database.h"
 #include "Date.h"
 #include "Time.h"
 #include "Book.h"
@@ -84,6 +84,35 @@ string eventTypeToString(EventType type)
 
 void runConsoleDemo()
 {
+	Database database;
+
+	cout << "Database Test:" << endl;
+
+	if (database.open("schoolhub.db"))
+	{
+		cout << "schoolhub.db opened successfully."
+			<< endl;
+
+		if (database.createTables())
+		{
+			cout << "Database tables created successfully."
+				<< endl;
+		}
+		else
+		{
+			cout << "Table creation error: "
+				<< database.getLastError()
+				<< endl;
+		}
+	}
+	else
+	{
+		cout << "Database error: "
+			<< database.getLastError()
+			<< endl;
+	}
+
+	cout << endl;
 	// --------------------------------------------------
 	// Dates
 	// --------------------------------------------------
