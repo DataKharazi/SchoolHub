@@ -23,7 +23,7 @@ bool sameTime(Time time, int hour, int minute)
 
 StudyClass smallCourse()
 {
-    StudyClass course("Data Structures", "College", 3,
+    StudyClass course("Data Structures", 3,
         Date(2026, 9, 7), Date(2026, 9, 16));
     course.addClassMeeting(ClassMeeting(WeekDay::Monday, Time(11, 30), Time(12, 45)));
     course.addClassMeeting(ClassMeeting(WeekDay::Wednesday, Time(11, 30), Time(12, 45)));
@@ -142,7 +142,6 @@ int main()
         {"StudyClass stores course data and collections", [] {
             StudyClass course = smallCourse();
             CHECK(course.getClassName() == "Data Structures");
-            CHECK(course.getOrganizationName() == "College");
             CHECK(course.getCredits() == 3);
             CHECK(course.getStartDate() == Date(2026, 9, 7));
             CHECK(course.getEndDate() == Date(2026, 9, 16));
@@ -181,21 +180,86 @@ int main()
             CHECK(sameTime(course.getClassMeetings()[0].getEndTime(), 12, 45));
             CHECK(course.getGrades() == std::vector<double>({95, 88}));
         }},
-        {"Student data and course collection", [] {
+        {"School constructors and name", [] {
+            School empty;
+            CHECK(empty.getSchoolName().empty());
+            CHECK(empty.getStudyClasses().empty());
+            School school("College");
+            CHECK(school.getSchoolName() == "College");
+            school.setSchoolName("University");
+            CHECK(school.getSchoolName() == "University");
+        }},
+        {"School adds and retrieves classes by value", [] {
+            School school("College");
+            auto course = smallCourse();
+            school.addStudyClass(course);
+            school.addStudyClass(StudyClass("Math", 4, Date(2026, 9, 1), Date(2026, 12, 20)));
+            course.setClassName("Changed outside school");
+            CHECK(school.getStudyClasses().size() == 2);
+            CHECK(school.getStudyClasses()[0].getClassName() == "Data Structures");
+            CHECK(school.getStudyClasses()[0].getClassMeetings().size() == 2);
+            CHECK(school.getStudyClasses()[1].getClassName() == "Math");
+            auto copy = school.getStudyClasses();
+            copy.clear();
+            CHECK(school.getStudyClasses().size() == 2);
+        }},
+        {"School safely removes classes by index", [] {
+            School school("College");
+            CHECK(!school.removeStudyClass(0));
+            auto first = smallCourse();
+            auto second = smallCourse();
+            second.setClassName("Math");
+            school.addStudyClass(first);
+            school.addStudyClass(second);
+            school.addStudyClass(first);
+            CHECK(!school.removeStudyClass(3));
+            CHECK(!school.removeStudyClass(static_cast<size_t>(-1)));
+            CHECK(school.getStudyClasses().size() == 3);
+            CHECK(school.removeStudyClass(1));
+            CHECK(school.getStudyClasses().size() == 2);
+            CHECK(school.getStudyClasses()[0].getClassName() == "Data Structures");
+            CHECK(school.getStudyClasses()[1].getClassName() == "Data Structures");
+            CHECK(school.removeStudyClass(1));
+            CHECK(school.removeStudyClass(0));
+            CHECK(school.getStudyClasses().empty());
+            CHECK(!school.removeStudyClass(0));
+        }},
+        {"Student data and school collection", [] {
             Student student("David", 3.5);
             CHECK(student.getStudentName() == "David");
             CHECK(student.getGPA() == 3.5);
-            CHECK(student.getStudyClasses().empty());
+            CHECK(student.getSchools().empty());
             student.setStudentName("David Kharazi");
             student.setGPA(3.75);
             CHECK(student.getStudentName() == "David Kharazi");
             CHECK(student.getGPA() == 3.75);
-            student.addStudyClass(smallCourse());
-            student.addStudyClass(StudyClass("Math", "College", 4, Date(2026, 9, 1), Date(2026, 12, 20)));
-            CHECK(student.getStudyClasses().size() == 2);
-            CHECK(student.getStudyClasses()[0].getClassName() == "Data Structures");
-            CHECK(student.getStudyClasses()[0].getClassMeetings().size() == 2);
-            CHECK(student.getStudyClasses()[1].getClassName() == "Math");
+            School school("College");
+            school.addStudyClass(smallCourse());
+            student.addSchool(school);
+            student.addSchool(School("University"));
+            CHECK(student.getSchools().size() == 2);
+            CHECK(student.getSchools()[0].getSchoolName() == "College");
+            CHECK(student.getSchools()[0].getStudyClasses().size() == 1);
+            CHECK(student.getSchools()[0].getStudyClasses()[0].getClassName() == "Data Structures");
+            CHECK(student.getSchools()[1].getSchoolName() == "University");
+            CHECK(student.getSchools()[1].getStudyClasses().empty());
+        }},
+        {"Student owns independent school values", [] {
+            School school("College");
+            school.addStudyClass(smallCourse());
+            Student first("First", 0);
+            Student second("Second", 0);
+            first.addSchool(school);
+            second.addSchool(school);
+            school.removeStudyClass(0);
+            school.setSchoolName("Changed");
+            auto schools = first.getSchools();
+            schools[0].removeStudyClass(0);
+            schools[0].setSchoolName("Changed copy");
+            CHECK(first.getSchools()[0].getSchoolName() == "College");
+            CHECK(first.getSchools()[0].getStudyClasses().size() == 1);
+            CHECK(second.getSchools()[0].getSchoolName() == "College");
+            CHECK(second.getSchools()[0].getStudyClasses().size() == 1);
         }},
         {"CalendarEvent without times", [] {
             CalendarEvent event("Homework", Date(2026, 9, 10), EventType::Assignment);

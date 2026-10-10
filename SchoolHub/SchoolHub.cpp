@@ -6,11 +6,11 @@
 	Description: Contains the application entry point.
 */
 
-#include "ConsoleDemo.h"
+#include "ConsoleApp.h"
 
 int main()
 {
-	runConsoleDemo();
+	runConsoleApp();
 
 	return 0;
 }

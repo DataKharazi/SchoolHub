@@ -10,7 +10,7 @@
 
 #include <string>
 #include <vector>
-#include "StudyClass.h"
+#include "School.h"
 
 using namespace std;
 
@@ -19,7 +19,7 @@ class Student
 private:
 	string studentName;
 	double gpa;
-	vector<StudyClass> studyClasses;
+	vector<School> schools;
 
 public:
 	Student();
@@ -31,7 +31,7 @@ public:
 	string getStudentName() const;
 	double getGPA() const;
 
-	void addStudyClass(StudyClass studyClass);
+	void addSchool(School school);
 
-	vector<StudyClass> getStudyClasses() const;
+	vector<School> getSchools() const;
 };

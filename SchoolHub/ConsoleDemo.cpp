@@ -175,7 +175,6 @@ void runConsoleDemo()
 
 	StudyClass cs3700(
 		"CS 3700 - Data Structures",
-		"Kingsborough Community College",
 		3,
 		semesterStart,
 		semesterEnd
@@ -227,7 +226,9 @@ void runConsoleDemo()
 		3.5
 	);
 
-	student.addStudyClass(cs3700);
+	School school("Kingsborough Community College");
+	school.addStudyClass(cs3700);
+	student.addSchool(school);
 
 
 	// ==================================================
@@ -246,14 +247,14 @@ void runConsoleDemo()
 
 
 	for (const StudyClass& studyClass :
-		student.getStudyClasses())
+		school.getStudyClasses())
 	{
 		cout << "\n"
 			<< studyClass.getClassName()
 			<< endl;
 
-		cout << "Organization: "
-			<< studyClass.getOrganizationName()
+		cout << "School: "
+			<< school.getSchoolName()
 			<< endl;
 
 		cout << "Credits: "

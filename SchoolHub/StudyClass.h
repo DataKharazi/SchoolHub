@@ -23,7 +23,6 @@ class StudyClass
 {
 private:
 	string className;
-	string organizationName;
 	double credits;
 
 	vector<double> grades;
@@ -38,17 +37,15 @@ private:
 
 public:
 	StudyClass();
-	StudyClass(string className, string organizationName,
+	StudyClass(string className,
 		double credits, Date startDate, Date endDate);
 
 	void setClassName(string className);
-	void setOrganizationName(string organizationName);
 	void setCredits(double credits);
 	void setStartDate(Date startDate);
 	void setEndDate(Date endDate);
 
 	string getClassName() const;
-	string getOrganizationName() const;
 	double getCredits() const;
 	Date getStartDate() const;
 	Date getEndDate() const;

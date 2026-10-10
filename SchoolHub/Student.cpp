@@ -40,12 +40,12 @@ double Student::getGPA() const
 	return gpa;
 }
 
-void Student::addStudyClass(StudyClass studyClass)
+void Student::addSchool(School school)
 {
-	studyClasses.push_back(studyClass);
+	schools.push_back(school);
 }
 
-vector<StudyClass> Student::getStudyClasses() const
+vector<School> Student::getSchools() const
 {
-	return studyClasses;
+	return schools;
 }

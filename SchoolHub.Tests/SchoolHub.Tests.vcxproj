@@ -154,6 +154,7 @@
     <ClCompile Include="..\SchoolHub\Exam.cpp" />
     <ClCompile Include="..\SchoolHub\External\SQLite\sqlite3.c" />
     <ClCompile Include="..\SchoolHub\Student.cpp" />
+    <ClCompile Include="..\SchoolHub\School.cpp" />
     <ClCompile Include="..\SchoolHub\StudyClass.cpp" />
     <ClCompile Include="..\SchoolHub\Time.cpp" />
   </ItemGroup>
@@ -169,6 +170,7 @@
     <ClInclude Include="..\SchoolHub\Exam.h" />
     <ClInclude Include="..\SchoolHub\External\SQLite\sqlite3.h" />
     <ClInclude Include="..\SchoolHub\Student.h" />
+    <ClInclude Include="..\SchoolHub\School.h" />
     <ClInclude Include="..\SchoolHub\StudyClass.h" />
     <ClInclude Include="..\SchoolHub\Time.h" />
     <ClInclude Include="..\SchoolHub\WeekDay.h" />

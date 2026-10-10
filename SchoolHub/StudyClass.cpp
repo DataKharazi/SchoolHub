@@ -11,15 +11,13 @@
 StudyClass::StudyClass()
 {
 	className = "";
-	organizationName = "";
 	credits = 0;
 }
 
-StudyClass::StudyClass(string className, string organizationName,
+StudyClass::StudyClass(string className,
 	double credits, Date startDate, Date endDate)
 {
 	this->className = className;
-	this->organizationName = organizationName;
 	this->credits = credits;
 	this->startDate = startDate;
 	this->endDate = endDate;
@@ -28,11 +26,6 @@ StudyClass::StudyClass(string className, string organizationName,
 void StudyClass::setClassName(string className)
 {
 	this->className = className;
-}
-
-void StudyClass::setOrganizationName(string organizationName)
-{
-	this->organizationName = organizationName;
 }
 
 void StudyClass::setCredits(double credits)
@@ -53,11 +46,6 @@ void StudyClass::setEndDate(Date endDate)
 string StudyClass::getClassName() const
 {
 	return className;
-}
-
-string StudyClass::getOrganizationName() const
-{
-	return organizationName;
 }
 
 double StudyClass::getCredits() const
