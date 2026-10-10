@@ -7,6 +7,8 @@
 */
 
 #include "StudyClass.h"
+#include <cmath>
+#include <stdexcept>
 
 StudyClass::StudyClass()
 {
@@ -63,11 +65,6 @@ Date StudyClass::getEndDate() const
 	return endDate;
 }
 
-void StudyClass::addGrade(double grade)
-{
-	grades.push_back(grade);
-}
-
 void StudyClass::addAssignment(Assignment assignment)
 {
 	assignments.push_back(assignment);
@@ -88,9 +85,53 @@ void StudyClass::addClassMeeting(ClassMeeting classMeeting)
 	classMeetings.push_back(classMeeting);
 }
 
-vector<double> StudyClass::getGrades() const
+optional<Grade> StudyClass::getGradeSummary() const
 {
-	return grades;
+	double earned = 0;
+	double possible = 0;
+	for (const Assignment& assignment : assignments)
+	{
+		auto grade = assignment.getGrade();
+		if (grade)
+		{
+			earned += grade->getEarnedPoints();
+			possible += grade->getMaxPoints();
+		}
+	}
+	for (const Exam& exam : exams)
+	{
+		auto grade = exam.getGrade();
+		if (grade)
+		{
+			earned += grade->getEarnedPoints();
+			possible += grade->getMaxPoints();
+		}
+	}
+	if (!std::isfinite(earned) || !std::isfinite(possible))
+		throw std::overflow_error("Course grade totals exceed the supported numeric range.");
+	if (possible == 0)
+		return nullopt;
+	return Grade(earned, possible);
+}
+
+void StudyClass::setAssignmentGrade(size_t index, double earnedPoints, double maxPoints)
+{
+	assignments.at(index).setGrade(earnedPoints, maxPoints);
+}
+
+void StudyClass::clearAssignmentGrade(size_t index)
+{
+	assignments.at(index).clearGrade();
+}
+
+void StudyClass::setExamGrade(size_t index, double earnedPoints, double maxPoints)
+{
+	exams.at(index).setGrade(earnedPoints, maxPoints);
+}
+
+void StudyClass::clearExamGrade(size_t index)
+{
+	exams.at(index).clearGrade();
 }
 
 vector<Assignment> StudyClass::getAssignments() const

@@ -38,3 +38,18 @@ Date Exam::getExamDate() const
 {
 	return examDate;
 }
+
+void Exam::setGrade(double earnedPoints, double maxPoints)
+{
+	grade = Grade(earnedPoints, maxPoints);
+}
+
+void Exam::clearGrade()
+{
+	grade.reset();
+}
+
+optional<Grade> Exam::getGrade() const
+{
+	return grade;
+}

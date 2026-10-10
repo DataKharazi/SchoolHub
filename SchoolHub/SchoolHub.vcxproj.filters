@@ -36,6 +36,9 @@
     <ClCompile Include="Exam.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Grade.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="StudyClass.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -81,6 +84,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Exam.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Grade.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="StudyClass.h">

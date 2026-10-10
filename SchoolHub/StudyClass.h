@@ -10,6 +10,9 @@
 
 #include <string>
 #include <vector>
+#include <cstddef>
+#include <optional>
+#include "Grade.h"
 
 #include "Date.h"
 #include "Book.h"
@@ -24,8 +27,6 @@ class StudyClass
 private:
 	string className;
 	double credits;
-
-	vector<double> grades;
 
 	Date startDate;
 	Date endDate;
@@ -50,13 +51,20 @@ public:
 	Date getStartDate() const;
 	Date getEndDate() const;
 
-	void addGrade(double grade);
 	void addAssignment(Assignment assignment);
 	void addBook(Book book);
 	void addExam(Exam exam);
 	void addClassMeeting(ClassMeeting classMeeting);
 
-	vector<double> getGrades() const;
+	// Derived from graded assignments and exams; nullopt means no graded work.
+	optional<Grade> getGradeSummary() const;
+
+	// Zero-based indices; invalid indices throw out_of_range.
+	void setAssignmentGrade(size_t index, double earnedPoints, double maxPoints);
+	void clearAssignmentGrade(size_t index);
+	void setExamGrade(size_t index, double earnedPoints, double maxPoints);
+	void clearExamGrade(size_t index);
+
 	vector<Assignment> getAssignments() const;
 	vector<Book> getBooks() const;
 	vector<Exam> getExams() const;

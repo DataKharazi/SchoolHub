@@ -12,7 +12,7 @@ Invalid choices are retried, blank names cancel adding, and end-of-input exits.
 
 All students and schools live in memory for the current session. The normal
 console workflow does not open a database. New students start with GPA 0.0;
-GPA entry and grading changes are deferred. Names may contain spaces and need
+GPA entry is deferred. Names may contain spaces and need
 not be unique; numbered selection distinguishes entries.
 
 The ownership hierarchy is `Student -> School -> StudyClass`. School names now
@@ -25,6 +25,44 @@ Editing a returned copy does not update its owner; future class management will
 need a deliberate way to modify owned classes. The current dashboard only reads
 a selected school. `ConsoleDemo` remains available but is no longer the entry
 workflow. Input and output stay in `ConsoleApp`, outside the domain classes.
+
+## Points-based grading
+
+The console is a temporary developer interface. Reusable grading behavior lives
+in the domain model and can later be called by Qt.
+
+`Assignment` and `Exam` each own an `optional<Grade>`. Both constructors start
+ungraded. Use `setGrade(earnedPoints, maxPoints)`, `getGrade()`, and `clearGrade()`.
+`Grade` stores only earned and maximum points; `getPercentage()` and `getLetter()`
+calculate results on demand. `GradeLetter` is A/B/C/D/F with thresholds
+90/80/70/60. Letters use the unrounded percentage. Grading does not change an
+assignment's completion status, and completing it does not assign a grade.
+
+Extra credit is allowed: 22/20 is 110%, an A. Negative earned points, zero or
+negative maximum points, NaN, infinity, and values whose percentage overflows
+are rejected with `std::invalid_argument`. Nothing is clamped; a failed update
+preserves the previous grade (or ungraded state). A zero earned score is a real
+grade, not an ungraded marker.
+
+`StudyClass::getGradeSummary()` derives an `optional<Grade>` from all graded
+assignments and exams. Its earned/maximum values are course totals. Ungraded
+work contributes neither points nor possible points; no graded work returns
+`nullopt`, not F. For example, 18/20 plus 90/100 yields 108/120, 90%, A.
+Totals that overflow throw `std::overflow_error`. No summary is cached or stored.
+
+The unrelated `vector<double> grades`, `addGrade`, and `getGrades` APIs were
+removed. Existing demo grades now belong to its assignment and exam. To grade
+objects already owned by a course, use `setAssignmentGrade(index, earned, max)`
+or `setExamGrade(index, earned, max)`; corresponding `clearAssignmentGrade` and
+`clearExamGrade` methods restore the ungraded state. These indices are zero-based
+and checked; invalid indices throw `std::out_of_range`. Collection getters still
+return copies, so grading a retrieved copy does not modify the original.
+
+Student GPA remains a manually stored, independent field and is not updated by
+course grades. A future GPA milestone can map course letters to grade points
+and combine them using course credits, after defining policies for incomplete
+courses and school grading scales. This milestone adds no GPA calculation,
+weighted categories, database changes, or grading console menus.
 
 ## Automated tests
 
@@ -52,7 +90,8 @@ Release is also supported: change both occurrences of `Debug` to `Release`.
 Checks remain active in Release builds; the runner does not use `assert()`.
 Win32 configurations are also available (the solution calls this platform x86).
 
-The 29 cases cover dates and leap years, times, assignment status, recurring
+The 54 cases cover points grading and validation, course totals, letter boundaries,
+dates and leap years, times, assignment status, recurring
 meetings, school ownership and safe class removal, course and student collections, optional event times, calendar
 generation and ordering, the 31-meeting/35-event sample, and current database
 operations and errors. SQLite tests use fresh `:memory:` databases, which are

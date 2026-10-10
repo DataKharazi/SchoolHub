@@ -72,3 +72,18 @@ AssignmentStatus Assignment::getStatus(const Date& currentDate) const
 
 	return AssignmentStatus::Active;
 }
+
+void Assignment::setGrade(double earnedPoints, double maxPoints)
+{
+	grade = Grade(earnedPoints, maxPoints);
+}
+
+void Assignment::clearGrade()
+{
+	grade.reset();
+}
+
+optional<Grade> Assignment::getGrade() const
+{
+	return grade;
+}

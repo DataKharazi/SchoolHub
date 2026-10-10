@@ -206,6 +206,8 @@ void runConsoleDemo()
 	// --------------------------------------------------
 
 	cs3700.addBook(book);
+	assignment1.setGrade(18, 20);
+	exam.setGrade(90, 100);
 
 	cs3700.addAssignment(assignment1);
 	cs3700.addAssignment(assignment2);
@@ -213,8 +215,6 @@ void runConsoleDemo()
 
 	cs3700.addExam(exam);
 
-	cs3700.addGrade(95);
-	cs3700.addGrade(88);
 
 
 	// --------------------------------------------------

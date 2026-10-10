@@ -1,4 +1,6 @@
 #include <iostream>
+#include <cmath>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -19,6 +21,23 @@ void check(bool condition, const char* expression, int line)
 bool sameTime(Time time, int hour, int minute)
 {
     return time.getHour() == hour && time.getMinute() == minute;
+}
+
+bool near(double actual, double expected)
+{
+    return std::abs(actual - expected) < 0.000001;
+}
+
+template <typename Exception, typename Action>
+void expectThrows(Action action)
+{
+    try {
+        action();
+    }
+    catch (const Exception&) {
+        return;
+    }
+    throw std::runtime_error("Expected exception was not thrown");
 }
 
 StudyClass smallCourse()
@@ -148,7 +167,7 @@ int main()
             CHECK(course.getBooks().empty());
             CHECK(course.getAssignments().empty());
             CHECK(course.getExams().empty());
-            CHECK(course.getGrades().empty());
+            CHECK(!course.getGradeSummary());
             Book book("Textbook", "books/textbook.pdf");
             book.setBookMark(125);
             course.addBook(book);
@@ -157,8 +176,6 @@ int main()
             course.addAssignment(Assignment("Project", Date(2026, 9, 8), Date(2026, 9, 16)));
             course.addExam(Exam("Quiz", Date(2026, 9, 11)));
             course.addExam(Exam("Final", Date(2026, 9, 16)));
-            course.addGrade(95);
-            course.addGrade(88);
             CHECK(course.getBooks().size() == 2);
             CHECK(course.getBooks()[0].getBookName() == "Textbook");
             CHECK(course.getBooks()[0].getFilePath() == "books/textbook.pdf");
@@ -178,7 +195,7 @@ int main()
             CHECK(course.getClassMeetings()[1].getWeekDay() == WeekDay::Wednesday);
             CHECK(sameTime(course.getClassMeetings()[0].getStartTime(), 11, 30));
             CHECK(sameTime(course.getClassMeetings()[0].getEndTime(), 12, 45));
-            CHECK(course.getGrades() == std::vector<double>({95, 88}));
+            CHECK(!course.getGradeSummary());
         }},
         {"School constructors and name", [] {
             School empty;
@@ -352,6 +369,277 @@ int main()
             auto events = Calendar().generateAllEvents(course);
             CHECK(events.size() == 35);
             checkSorted(events);
+        }},
+
+        {"Assignment starts ungraded", [] {
+            Assignment empty;
+            Assignment named("Homework", Date(2026, 9, 1), Date(2026, 9, 10));
+            CHECK(!empty.getGrade());
+            CHECK(!named.getGrade());
+        }},
+        {"Assignment stores points and calculates percentage and letter", [] {
+            Assignment work;
+            work.setGrade(18, 20);
+            CHECK(work.getGrade().has_value());
+            CHECK(work.getGrade()->getEarnedPoints() == 18);
+            CHECK(work.getGrade()->getMaxPoints() == 20);
+            CHECK(near(work.getGrade()->getPercentage(), 90));
+            CHECK(work.getGrade()->getLetter() == GradeLetter::A);
+            work.setGrade(1, 3);
+            CHECK(near(work.getGrade()->getPercentage(), 100.0 / 3));
+        }},
+        {"Assignment rejects invalid maximum and preserves prior grade", [] {
+            Assignment work;
+            expectThrows<std::invalid_argument>([&] { work.setGrade(5, 0); });
+            CHECK(!work.getGrade());
+            work.setGrade(18, 20);
+            expectThrows<std::invalid_argument>([&] { work.setGrade(5, -10); });
+            CHECK(work.getGrade()->getEarnedPoints() == 18);
+            CHECK(work.getGrade()->getMaxPoints() == 20);
+        }},
+        {"Assignment rejects negative earned points", [] {
+            Assignment work;
+            expectThrows<std::invalid_argument>([&] { work.setGrade(-1, 20); });
+            CHECK(!work.getGrade());
+        }},
+        {"Assignment allows extra credit and zero earned points", [] {
+            Assignment work;
+            work.setGrade(22, 20);
+            CHECK(near(work.getGrade()->getPercentage(), 110));
+            CHECK(work.getGrade()->getLetter() == GradeLetter::A);
+            work.setGrade(0, 20);
+            CHECK(work.getGrade().has_value());
+            CHECK(work.getGrade()->getPercentage() == 0);
+            CHECK(work.getGrade()->getLetter() == GradeLetter::F);
+        }},
+        {"Assignment replaces and clears a grade", [] {
+            Assignment work;
+            work.setGrade(18, 20);
+            work.setGrade(83, 100);
+            CHECK(work.getGrade()->getEarnedPoints() == 83);
+            CHECK(work.getGrade()->getMaxPoints() == 100);
+            CHECK(near(work.getGrade()->getPercentage(), 83));
+            CHECK(work.getGrade()->getLetter() == GradeLetter::B);
+            work.clearGrade();
+            CHECK(!work.getGrade());
+            work.clearGrade();
+            CHECK(!work.getGrade());
+        }},
+        {"Assignment rejects non-finite grades and percentage overflow", [] {
+            Assignment work;
+            const double nan = std::numeric_limits<double>::quiet_NaN();
+            const double infinity = std::numeric_limits<double>::infinity();
+            for (double invalid : {nan, infinity, -infinity}) {
+                expectThrows<std::invalid_argument>([&] { work.setGrade(invalid, 20); });
+                expectThrows<std::invalid_argument>([&] { work.setGrade(10, invalid); });
+            }
+            expectThrows<std::invalid_argument>([&] {
+                work.setGrade(std::numeric_limits<double>::max(), 0.5);
+            });
+            CHECK(!work.getGrade());
+        }},
+
+        {"Exam starts ungraded", [] {
+            Exam empty;
+            Exam named("Quiz", Date(2026, 9, 10));
+            CHECK(!empty.getGrade());
+            CHECK(!named.getGrade());
+        }},
+        {"Exam stores points and calculates percentage and letter", [] {
+            Exam work;
+            work.setGrade(18, 20);
+            CHECK(work.getGrade().has_value());
+            CHECK(work.getGrade()->getEarnedPoints() == 18);
+            CHECK(work.getGrade()->getMaxPoints() == 20);
+            CHECK(near(work.getGrade()->getPercentage(), 90));
+            CHECK(work.getGrade()->getLetter() == GradeLetter::A);
+            work.setGrade(1, 3);
+            CHECK(near(work.getGrade()->getPercentage(), 100.0 / 3));
+        }},
+        {"Exam rejects invalid maximum and preserves prior grade", [] {
+            Exam work;
+            expectThrows<std::invalid_argument>([&] { work.setGrade(5, 0); });
+            CHECK(!work.getGrade());
+            work.setGrade(18, 20);
+            expectThrows<std::invalid_argument>([&] { work.setGrade(5, -10); });
+            CHECK(work.getGrade()->getEarnedPoints() == 18);
+            CHECK(work.getGrade()->getMaxPoints() == 20);
+        }},
+        {"Exam rejects negative earned points", [] {
+            Exam work;
+            expectThrows<std::invalid_argument>([&] { work.setGrade(-1, 20); });
+            CHECK(!work.getGrade());
+        }},
+        {"Exam allows extra credit and zero earned points", [] {
+            Exam work;
+            work.setGrade(22, 20);
+            CHECK(near(work.getGrade()->getPercentage(), 110));
+            CHECK(work.getGrade()->getLetter() == GradeLetter::A);
+            work.setGrade(0, 20);
+            CHECK(work.getGrade().has_value());
+            CHECK(work.getGrade()->getPercentage() == 0);
+            CHECK(work.getGrade()->getLetter() == GradeLetter::F);
+        }},
+        {"Exam replaces and clears a grade", [] {
+            Exam work;
+            work.setGrade(18, 20);
+            work.setGrade(83, 100);
+            CHECK(work.getGrade()->getEarnedPoints() == 83);
+            CHECK(work.getGrade()->getMaxPoints() == 100);
+            CHECK(near(work.getGrade()->getPercentage(), 83));
+            CHECK(work.getGrade()->getLetter() == GradeLetter::B);
+            work.clearGrade();
+            CHECK(!work.getGrade());
+            work.clearGrade();
+            CHECK(!work.getGrade());
+        }},
+        {"Exam rejects non-finite grades and percentage overflow", [] {
+            Exam work;
+            const double nan = std::numeric_limits<double>::quiet_NaN();
+            const double infinity = std::numeric_limits<double>::infinity();
+            for (double invalid : {nan, infinity, -infinity}) {
+                expectThrows<std::invalid_argument>([&] { work.setGrade(invalid, 20); });
+                expectThrows<std::invalid_argument>([&] { work.setGrade(10, invalid); });
+            }
+            expectThrows<std::invalid_argument>([&] {
+                work.setGrade(std::numeric_limits<double>::max(), 0.5);
+            });
+            CHECK(!work.getGrade());
+        }},
+
+        {"Course without graded work has no summary", [] {
+            auto course = smallCourse();
+            CHECK(!course.getGradeSummary());
+            course.addAssignment(Assignment());
+            course.addExam(Exam());
+            CHECK(!course.getGradeSummary());
+        }},
+        {"Course with one graded assignment", [] {
+            auto course = smallCourse();
+            Assignment assignment;
+            assignment.setGrade(18, 20);
+            course.addAssignment(assignment);
+            auto summary = course.getGradeSummary();
+            CHECK(summary.has_value());
+            CHECK(summary->getEarnedPoints() == 18);
+            CHECK(summary->getMaxPoints() == 20);
+            CHECK(near(summary->getPercentage(), 90));
+            CHECK(summary->getLetter() == GradeLetter::A);
+        }},
+        {"Course totals points instead of averaging percentages", [] {
+            auto course = smallCourse();
+            course.addAssignment(Assignment());
+            course.addAssignment(Assignment());
+            course.setAssignmentGrade(0, 10, 10);
+            course.setAssignmentGrade(1, 0, 90);
+            auto summary = course.getGradeSummary();
+            CHECK(summary.has_value());
+            CHECK(summary->getEarnedPoints() == 10);
+            CHECK(summary->getMaxPoints() == 100);
+            CHECK(near(summary->getPercentage(), 10));
+            CHECK(summary->getLetter() == GradeLetter::F);
+        }},
+        {"Course combines assignment and exam and excludes ungraded work", [] {
+            auto course = smallCourse();
+            course.addAssignment(Assignment());
+            course.addAssignment(Assignment());
+            course.addExam(Exam());
+            course.addExam(Exam());
+            course.setAssignmentGrade(0, 18, 20);
+            course.setExamGrade(0, 90, 100);
+            auto summary = course.getGradeSummary();
+            CHECK(summary.has_value());
+            CHECK(summary->getEarnedPoints() == 108);
+            CHECK(summary->getMaxPoints() == 120);
+            CHECK(near(summary->getPercentage(), 90));
+            CHECK(summary->getLetter() == GradeLetter::A);
+            CHECK(!course.getAssignments()[1].getGrade());
+            CHECK(!course.getExams()[1].getGrade());
+        }},
+        {"Course with only a graded exam", [] {
+            auto course = smallCourse();
+            course.addExam(Exam());
+            course.setExamGrade(0, 83, 100);
+            auto summary = course.getGradeSummary();
+            CHECK(summary.has_value());
+            CHECK(summary->getEarnedPoints() == 83);
+            CHECK(summary->getMaxPoints() == 100);
+            CHECK(near(summary->getPercentage(), 83));
+            CHECK(summary->getLetter() == GradeLetter::B);
+        }},
+        {"Course zero points is F and extra credit is A", [] {
+            auto course = smallCourse();
+            course.addAssignment(Assignment());
+            course.setAssignmentGrade(0, 0, 20);
+            CHECK(course.getGradeSummary().has_value());
+            CHECK(course.getGradeSummary()->getLetter() == GradeLetter::F);
+            course.setAssignmentGrade(0, 22, 20);
+            CHECK(near(course.getGradeSummary()->getPercentage(), 110));
+            CHECK(course.getGradeSummary()->getLetter() == GradeLetter::A);
+        }},
+        {"Course recalculates from owned work after grading and clearing", [] {
+            auto course = smallCourse();
+            course.addAssignment(Assignment());
+            course.addExam(Exam());
+            course.setAssignmentGrade(0, 18, 20);
+            course.setExamGrade(0, 90, 100);
+            CHECK(course.getAssignments()[0].getGrade()->getEarnedPoints() == 18);
+            CHECK(course.getExams()[0].getGrade()->getEarnedPoints() == 90);
+            course.setAssignmentGrade(0, 10, 20);
+            CHECK(course.getGradeSummary()->getEarnedPoints() == 100);
+            CHECK(near(course.getGradeSummary()->getPercentage(), 10000.0 / 120));
+            expectThrows<std::invalid_argument>([&] { course.setAssignmentGrade(0, -1, 20); });
+            expectThrows<std::invalid_argument>([&] { course.setExamGrade(0, 10, 0); });
+            CHECK(course.getGradeSummary()->getEarnedPoints() == 100);
+            course.clearAssignmentGrade(0);
+            CHECK(course.getGradeSummary()->getMaxPoints() == 100);
+            CHECK(near(course.getGradeSummary()->getPercentage(), 90));
+            course.clearExamGrade(0);
+            CHECK(!course.getGradeSummary());
+        }},
+        {"Course grading rejects invalid indices", [] {
+            auto course = smallCourse();
+            course.addAssignment(Assignment());
+            course.addExam(Exam());
+            expectThrows<std::out_of_range>([&] { course.setAssignmentGrade(1, 18, 20); });
+            expectThrows<std::out_of_range>([&] { course.setExamGrade(1, 18, 20); });
+            expectThrows<std::out_of_range>([&] { course.clearAssignmentGrade(1); });
+            expectThrows<std::out_of_range>([&] { course.clearExamGrade(1); });
+            CHECK(!course.getGradeSummary());
+        }},
+        {"Course reports numeric overflow in totals", [] {
+            auto course = smallCourse();
+            course.addAssignment(Assignment());
+            course.addExam(Exam());
+            const double largest = std::numeric_limits<double>::max();
+            course.setAssignmentGrade(0, largest, largest);
+            course.setExamGrade(0, largest, largest);
+            expectThrows<std::overflow_error>([&] { course.getGradeSummary(); });
+        }},
+        {"Letter grade exact boundaries without rounding", [] {
+            struct Boundary { double percentage; GradeLetter letter; };
+            const Boundary boundaries[] = {
+                {100, GradeLetter::A}, {90, GradeLetter::A},
+                {89.999, GradeLetter::B}, {80, GradeLetter::B},
+                {79.999, GradeLetter::C}, {70, GradeLetter::C},
+                {69.999, GradeLetter::D}, {60, GradeLetter::D},
+                {59.999, GradeLetter::F}
+            };
+            for (const auto& boundary : boundaries) {
+                Grade grade(boundary.percentage, 100);
+                CHECK(near(grade.getPercentage(), boundary.percentage));
+                CHECK(grade.getLetter() == boundary.letter);
+            }
+        }},
+        {"Assignment grading and completion remain independent", [] {
+            Assignment assignment("Homework", Date(2026, 9, 1), Date(2026, 9, 10));
+            assignment.setGrade(18, 20);
+            CHECK(!assignment.isFinished());
+            CHECK(assignment.getStatus(Date(2026, 9, 11)) == AssignmentStatus::Overdue);
+            assignment.setFinished(true);
+            CHECK(assignment.getGrade()->getEarnedPoints() == 18);
+            assignment.clearGrade();
+            CHECK(assignment.isFinished());
         }},
         {"Database open create current table and close", [] {
             Database database;

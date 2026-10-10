@@ -9,6 +9,8 @@
 #pragma once
 
 #include <string>
+#include <optional>
+#include "Grade.h"
 #include "Date.h"
 
 using namespace std;
@@ -18,6 +20,7 @@ class Exam
 private:
 	string examName;
 	Date examDate;
+	optional<Grade> grade;
 
 public:
 	Exam();
@@ -28,4 +31,8 @@ public:
 
 	string getExamName() const;
 	Date getExamDate() const;
+
+	void setGrade(double earnedPoints, double maxPoints);
+	void clearGrade();
+	optional<Grade> getGrade() const;
 };

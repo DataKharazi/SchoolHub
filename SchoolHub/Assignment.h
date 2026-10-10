@@ -9,6 +9,8 @@
 #pragma once
 
 #include <string>
+#include <optional>
+#include "Grade.h"
 #include "Date.h"
 
 using namespace std;
@@ -27,6 +29,7 @@ private:
 	Date startDate;
 	Date dueDate;
 	bool finished;
+	optional<Grade> grade;
 
 public:
 	Assignment();
@@ -43,4 +46,8 @@ public:
 	bool isFinished() const;
 
 	AssignmentStatus getStatus(const Date& currentDate) const;
+
+	void setGrade(double earnedPoints, double maxPoints);
+	void clearGrade();
+	optional<Grade> getGrade() const;
 };
