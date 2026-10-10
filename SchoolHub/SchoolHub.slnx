@@ -4,4 +4,5 @@
     <Platform Name="x86" />
   </Configurations>
   <Project Path="SchoolHub.vcxproj" Id="3ee9f706-8835-45df-a2b4-f459f4348843" />
+  <Project Path="../SchoolHub.Tests/SchoolHub.Tests.vcxproj" Id="9c8a3b18-241f-443a-87ab-ae17c8b0244a" />
 </Solution>
