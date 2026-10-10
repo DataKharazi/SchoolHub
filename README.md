@@ -64,6 +64,61 @@ and combine them using course credits, after defining policies for incomplete
 courses and school grading scales. This milestone adds no GPA calculation,
 weighted categories, database changes, or grading console menus.
 
+## Schedule and event queries
+
+`Calendar` provides reusable school-wide queries, independent of console input,
+SQLite, and Qt. It reuses the existing course event generators and stores no
+generated events. Callers pass a reference `Date`; obtaining the actual local
+current date is the responsibility of the future UI/application boundary.
+
+- `getUpcomingEvents(school, referenceDate)` returns assignments and exams on or
+  after the reference date, so today counts. Ordinary meetings are excluded.
+- `getWeeklySchedule(school, referenceDate, mode)` returns the Monday through
+  Sunday week containing the reference date, inclusive. `ScheduleMode` offers
+  `ClassesOnly`, `EventsOnly`, and `Combined` (the default).
+- `generateClassEvents(course, rangeStart, rangeEnd)` adds an inclusive range
+  overload. The original overload delegates to it. Meeting generation walks
+  only the intersection of the requested range and the semester, so weekly
+  queries do not generate an entire semester first.
+
+Queries inspect every course in the selected school. Semester dates bound only
+meetings; assignment/exam dates remain authoritative even outside a semester.
+Finished assignments remain included, matching the existing event generator.
+No additional current/past/future-course or completion filters are inferred.
+
+All Calendar generators and queries sort by date, then timed events by start
+hour/minute, then untimed events. Stable sorting preserves insertion order for
+equal start times and untimed ties: school course order, then source collection
+order (assignments before exams within a course). No artificial times are added.
+
+Date adds `isValid()`, `getPreviousDay()`, `getWeekStartDate()` (Monday), and
+`getWeekEndDate()` (Sunday). To move weeks, use the prior Monday's previous day
+or the prior Sunday's next day as the next query reference:
+
+```cpp
+Calendar calendar;
+auto week = calendar.getWeeklySchedule(school, referenceDate);
+Date previous = referenceDate.getWeekStartDate().getPreviousDay();
+Date next = referenceDate.getWeekEndDate().getNextDay();
+auto upcoming = calendar.getUpcomingEvents(school, referenceDate);
+```
+
+The local Date implementation still allowed invalid values at the start of this
+milestone. Constructors/setters retain that behavior, including the all-zero
+default, while date arithmetic and Calendar reject invalid dates with
+`std::invalid_argument`. Valid dates use Gregorian rules and positive `int`
+years. Arithmetic past the supported year bounds throws `std::out_of_range`;
+a week that cannot be represented in full also throws. Reversed query ranges
+and invalid schedule modes throw `std::invalid_argument`. A reversed semester
+produces no meetings, preserving the previous generator behavior. Queries fail
+on invalid source dates in the event category being requested.
+
+Current limitations: `Time` still has no input validation, collection getters
+copy their values, and `CalendarEvent` has no source course/object identifier.
+The future GUI will need source identity to reliably open an event's originating
+object, especially when titles repeat. These queries preserve events separately
+and do not deduplicate titles or introduce an identity redesign.
+
 ## Automated tests
 
 `SchoolHub.Tests` is a separate console project in `SchoolHub/SchoolHub.slnx`.
@@ -90,7 +145,8 @@ Release is also supported: change both occurrences of `Debug` to `Release`.
 Checks remain active in Release builds; the runner does not use `assert()`.
 Win32 configurations are also available (the solution calls this platform x86).
 
-The 54 cases cover points grading and validation, course totals, letter boundaries,
+The 74 cases cover week boundaries/navigation, school-wide event queries,
+semester clipping and stable same-day ordering, points grading and validation, course totals, letter boundaries,
 dates and leap years, times, assignment status, recurring
 meetings, school ownership and safe class removal, course and student collections, optional event times, calendar
 generation and ordering, the 31-meeting/35-event sample, and current database
@@ -105,9 +161,6 @@ its expression and line, stops that case, and lets the remaining cases run.
 When adding production implementation files, include them in the test project
 as needed; the two projects currently maintain separate source lists.
 
-Tests preserve current behavior: dates and times have no input validation,
-finished assignments still produce deadline events, and calendar ordering is
-by date only (there is no time-of-day ordering guarantee). Default `Date`
-values contain zeros; do not call `getWeekDay()` on them, because it indexes
-the month table using `month - 1`. The database currently only creates the
-initial `students` table; full model persistence is outside this test suite.
+All 54 tests from before schedule queries are retained, with 20 new cases.
+The database currently only creates the initial `students` table; full model
+persistence is outside this test suite.

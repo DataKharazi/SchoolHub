@@ -1,4 +1,4 @@
-/*/*
+/*
 	Name: Date.h
 	Copyright: David Kharazi 2026
 	Author: David Kharazi
@@ -30,7 +30,12 @@ public:
 	int getDay() const;
 
 	WeekDay getWeekDay() const;
+	// Positive Gregorian years; invalid dates cannot be used in calendar arithmetic.
+	bool isValid() const;
 	Date getNextDay() const;
+	Date getPreviousDay() const;
+	Date getWeekStartDate() const; // Monday
+	Date getWeekEndDate() const;   // Sunday
 
 	bool operator==(const Date& other) const;
 	bool operator<(const Date& other) const;

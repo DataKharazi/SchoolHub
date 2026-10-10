@@ -61,6 +61,35 @@ struct Test
     void (*run)();
 };
 
+School querySchool()
+{
+    School school("Query school");
+    StudyClass later("Later class", 3, Date(2026, 9, 8), Date(2026, 9, 9));
+    later.addClassMeeting(ClassMeeting(WeekDay::Monday, Time(12, 0), Time(13, 0)));
+    later.addClassMeeting(ClassMeeting(WeekDay::Wednesday, Time(10, 30), Time(11, 30)));
+    later.addClassMeeting(ClassMeeting(WeekDay::Wednesday, Time(9, 30), Time(10, 0)));
+    later.addAssignment(Assignment("Future assignment", Date(2026, 9, 1), Date(2026, 9, 11)));
+    Assignment today("Today assignment", Date(2026, 9, 1), Date(2026, 9, 9));
+    today.setFinished(true); // Queries add no completion-status filtering rule.
+    later.addAssignment(today);
+    later.addAssignment(Assignment("Past assignment", Date(2026, 9, 1), Date(2026, 9, 8)));
+    later.addExam(Exam("Future exam", Date(2026, 9, 12)));
+    later.addExam(Exam("Past exam", Date(2026, 9, 6)));
+    later.addExam(Exam("Next week exam", Date(2026, 9, 14)));
+    school.addStudyClass(later);
+
+    StudyClass earlier("Earlier class", 3, Date(2026, 9, 1), Date(2026, 9, 13));
+    earlier.addClassMeeting(ClassMeeting(WeekDay::Wednesday, Time(9, 0), Time(10, 0)));
+    earlier.addClassMeeting(ClassMeeting(WeekDay::Wednesday, Time(10, 30), Time(12, 0)));
+    earlier.addClassMeeting(ClassMeeting(WeekDay::Monday, Time(8, 0), Time(9, 0)));
+    earlier.addClassMeeting(ClassMeeting(WeekDay::Sunday, Time(8, 0), Time(9, 0)));
+    earlier.addAssignment(Assignment("Monday assignment", Date(2026, 9, 1), Date(2026, 9, 7)));
+    earlier.addExam(Exam("Sunday exam", Date(2026, 9, 13)));
+    earlier.addExam(Exam("Today exam", Date(2026, 9, 9)));
+    school.addStudyClass(earlier);
+    return school;
+}
+
 int main()
 {
     const std::vector<Test> tests = {
@@ -640,6 +669,211 @@ int main()
             CHECK(assignment.getGrade()->getEarnedPoints() == 18);
             assignment.clearGrade();
             CHECK(assignment.isFinished());
+        }},
+        {"Week containing Monday", [] {
+            CHECK(Date(2026, 9, 7).getWeekStartDate() == Date(2026, 9, 7));
+            CHECK(Date(2026, 9, 7).getWeekEndDate() == Date(2026, 9, 13));
+        }},
+        {"Week containing Wednesday", [] {
+            CHECK(Date(2026, 9, 9).getWeekStartDate() == Date(2026, 9, 7));
+            CHECK(Date(2026, 9, 9).getWeekEndDate() == Date(2026, 9, 13));
+        }},
+        {"Week containing Sunday", [] {
+            CHECK(Date(2026, 9, 13).getWeekStartDate() == Date(2026, 9, 7));
+            CHECK(Date(2026, 9, 13).getWeekEndDate() == Date(2026, 9, 13));
+        }},
+        {"Week crossing month boundary", [] {
+            CHECK(Date(2026, 10, 1).getWeekStartDate() == Date(2026, 9, 28));
+            CHECK(Date(2026, 10, 1).getWeekEndDate() == Date(2026, 10, 4));
+        }},
+        {"Week crossing year boundary", [] {
+            CHECK(Date(2027, 1, 1).getWeekStartDate() == Date(2026, 12, 28));
+            CHECK(Date(2027, 1, 1).getWeekEndDate() == Date(2027, 1, 3));
+        }},
+        {"Previous day handles month year and leap boundaries", [] {
+            CHECK(Date(2026, 9, 10).getPreviousDay() == Date(2026, 9, 9));
+            CHECK(Date(2027, 1, 1).getPreviousDay() == Date(2026, 12, 31));
+            CHECK(Date(2026, 5, 1).getPreviousDay() == Date(2026, 4, 30));
+            CHECK(Date(2024, 3, 1).getPreviousDay() == Date(2024, 2, 29));
+            CHECK(Date(1900, 3, 1).getPreviousDay() == Date(1900, 2, 28));
+            CHECK(Date(2000, 3, 1).getPreviousDay() == Date(2000, 2, 29));
+        }},
+        {"Previous and next week navigation", [] {
+            Date reference(2027, 1, 1);
+            auto previous = reference.getWeekStartDate().getPreviousDay();
+            auto next = reference.getWeekEndDate().getNextDay();
+            CHECK(previous.getWeekStartDate() == Date(2026, 12, 21));
+            CHECK(next.getWeekStartDate() == Date(2027, 1, 4));
+        }},
+        {"Date validity and invalid arithmetic", [] {
+            CHECK(Date(2024, 2, 29).isValid());
+            CHECK(Date(2000, 2, 29).isValid());
+            const Date invalid[] = {Date(), Date(0, 1, 1), Date(-1, 1, 1),
+                Date(2026, 13, 1), Date(2026, 0, 1), Date(2026, 4, 31),
+                Date(2026, 2, 29), Date(1900, 2, 29), Date(2026, 1, 0)};
+            for (const Date& date : invalid) {
+                CHECK(!date.isValid());
+                expectThrows<std::invalid_argument>([&] { date.getWeekDay(); });
+                expectThrows<std::invalid_argument>([&] { date.getNextDay(); });
+                expectThrows<std::invalid_argument>([&] { date.getPreviousDay(); });
+                expectThrows<std::invalid_argument>([&] { date.getWeekStartDate(); });
+                expectThrows<std::invalid_argument>([&] { date.getWeekEndDate(); });
+            }
+        }},
+        {"Date arithmetic rejects year overflow and underflow", [] {
+            CHECK(Date(1, 1, 1).getWeekDay() == WeekDay::Monday);
+            expectThrows<std::out_of_range>([] { Date(1, 1, 1).getPreviousDay(); });
+            Date last(std::numeric_limits<int>::max(), 12, 31);
+            CHECK(last.isValid());
+            expectThrows<std::out_of_range>([&] { last.getNextDay(); });
+        }},
+        {"School upcoming events include today across courses", [] {
+            auto events = Calendar().getUpcomingEvents(querySchool(), Date(2026, 9, 9));
+            const std::vector<std::string> titles = {"Today assignment", "Today exam",
+                "Future assignment", "Future exam", "Sunday exam", "Next week exam"};
+            CHECK(events.size() == titles.size());
+            for (size_t i = 0; i < events.size(); ++i) {
+                CHECK(events[i].getTitle() == titles[i]);
+                CHECK(!(events[i].getDate() < Date(2026, 9, 9)));
+                CHECK(events[i].getType() != EventType::ClassMeeting);
+                CHECK(!events[i].hasTime());
+            }
+            CHECK(events[0].getDate() == Date(2026, 9, 9));
+            CHECK(events[0].getType() == EventType::Assignment);
+            CHECK(events[1].getType() == EventType::Exam);
+            checkSorted(events);
+        }},
+        {"Weekly classes combine courses within inclusive boundaries", [] {
+            auto events = Calendar().getWeeklySchedule(querySchool(), Date(2026, 9, 9), ScheduleMode::ClassesOnly);
+            CHECK(events.size() == 6);
+            CHECK(events.front().getDate() == Date(2026, 9, 7));
+            CHECK(events.back().getDate() == Date(2026, 9, 13));
+            int laterCount = 0;
+            for (const auto& event : events) {
+                CHECK(event.getType() == EventType::ClassMeeting);
+                CHECK(event.hasTime());
+                CHECK(!(event.getDate() < Date(2026, 9, 7)));
+                CHECK(!(event.getDate() > Date(2026, 9, 13)));
+                auto day = event.getDate().getWeekDay();
+                CHECK(day == WeekDay::Monday || day == WeekDay::Wednesday || day == WeekDay::Sunday);
+                if (event.getTitle() == "Later class") {
+                    ++laterCount;
+                    CHECK(event.getDate() == Date(2026, 9, 9));
+                }
+            }
+            CHECK(laterCount == 2);
+            checkSorted(events);
+        }},
+        {"Weekly events exclude meetings and dates outside the week", [] {
+            auto events = Calendar().getWeeklySchedule(querySchool(), Date(2026, 9, 9), ScheduleMode::EventsOnly);
+            const std::vector<std::string> titles = {"Monday assignment", "Past assignment",
+                "Today assignment", "Today exam", "Future assignment", "Future exam", "Sunday exam"};
+            CHECK(events.size() == titles.size());
+            for (size_t i = 0; i < events.size(); ++i) {
+                CHECK(events[i].getTitle() == titles[i]);
+                CHECK(events[i].getType() != EventType::ClassMeeting);
+                CHECK(!events[i].hasTime());
+            }
+            CHECK(events.front().getDate() == Date(2026, 9, 7));
+            CHECK(events.back().getDate() == Date(2026, 9, 13));
+            checkSorted(events);
+        }},
+        {"Weekly combined schedule sorts same-day times then untimed events", [] {
+            auto events = Calendar().getWeeklySchedule(querySchool(), Date(2026, 9, 9));
+            CHECK(events.size() == 13);
+            checkSorted(events);
+            std::vector<CalendarEvent> wednesday;
+            for (const auto& event : events)
+                if (event.getDate() == Date(2026, 9, 9)) wednesday.push_back(event);
+            CHECK(wednesday.size() == 6);
+            CHECK(wednesday[0].getTitle() == "Earlier class");
+            CHECK(sameTime(wednesday[0].getStartTime().value(), 9, 0));
+            CHECK(wednesday[1].getTitle() == "Later class");
+            CHECK(sameTime(wednesday[1].getStartTime().value(), 9, 30));
+            CHECK(wednesday[2].getTitle() == "Later class");
+            CHECK(wednesday[3].getTitle() == "Earlier class");
+            CHECK(sameTime(wednesday[2].getStartTime().value(), 10, 30));
+            CHECK(sameTime(wednesday[3].getStartTime().value(), 10, 30));
+            CHECK(wednesday[4].getTitle() == "Today assignment");
+            CHECK(wednesday[5].getTitle() == "Today exam");
+            CHECK(!wednesday[4].hasTime());
+            CHECK(!wednesday[5].hasTime());
+        }},
+        {"All reference days in a week give the same schedule", [] {
+            auto school = querySchool();
+            auto monday = Calendar().getWeeklySchedule(school, Date(2026, 9, 7));
+            for (int day = 8; day <= 13; ++day) {
+                auto events = Calendar().getWeeklySchedule(school, Date(2026, 9, day));
+                CHECK(events.size() == monday.size());
+                for (size_t i = 0; i < events.size(); ++i) {
+                    CHECK(events[i].getTitle() == monday[i].getTitle());
+                    CHECK(events[i].getDate() == monday[i].getDate());
+                }
+            }
+        }},
+        {"Past and future semesters exclude meetings but retain actual deadlines", [] {
+            School school("College");
+            StudyClass past("Past", 3, Date(2026, 8, 1), Date(2026, 9, 6));
+            StudyClass future("Future", 3, Date(2026, 9, 14), Date(2026, 10, 1));
+            for (StudyClass* course : {&past, &future})
+                course->addClassMeeting(ClassMeeting(WeekDay::Wednesday, Time(8, 0), Time(9, 0)));
+            past.addAssignment(Assignment("Late deadline", Date(2026, 8, 1), Date(2026, 9, 9)));
+            future.addExam(Exam("Early exam", Date(2026, 9, 10)));
+            school.addStudyClass(past);
+            school.addStudyClass(future);
+            CHECK(Calendar().getWeeklySchedule(school, Date(2026, 9, 9), ScheduleMode::ClassesOnly).empty());
+            CHECK(Calendar().getWeeklySchedule(school, Date(2026, 9, 9)).size() == 2);
+            CHECK(Calendar().getUpcomingEvents(school, Date(2026, 9, 9)).size() == 2);
+        }},
+        {"Range generation reuses recurrence and clips a very long semester", [] {
+            StudyClass course("Long course", 3, Date(1, 1, 1), Date(std::numeric_limits<int>::max(), 12, 31));
+            course.addClassMeeting(ClassMeeting(WeekDay::Monday, Time(8, 0), Time(9, 0)));
+            auto events = Calendar().generateClassEvents(course, Date(2026, 9, 7), Date(2026, 9, 13));
+            CHECK(events.size() == 1);
+            CHECK(events[0].getDate() == Date(2026, 9, 7));
+            expectThrows<std::invalid_argument>([&] {
+                Calendar().generateClassEvents(course, Date(2026, 9, 13), Date(2026, 9, 7));
+            });
+        }},
+        {"Queries of empty schools return empty collections", [] {
+            School school("Empty");
+            CHECK(Calendar().getUpcomingEvents(school, Date(2026, 9, 9)).empty());
+            for (auto mode : {ScheduleMode::ClassesOnly, ScheduleMode::EventsOnly, ScheduleMode::Combined})
+                CHECK(Calendar().getWeeklySchedule(school, Date(2026, 9, 9), mode).empty());
+        }},
+        {"Queries reject invalid reference dates and invalid mode", [] {
+            School school("Empty");
+            expectThrows<std::invalid_argument>([&] { Calendar().getUpcomingEvents(school, Date()); });
+            expectThrows<std::invalid_argument>([&] { Calendar().getWeeklySchedule(school, Date()); });
+            expectThrows<std::invalid_argument>([&] {
+                Calendar().getWeeklySchedule(school, Date(2026, 9, 9), static_cast<ScheduleMode>(99));
+            });
+        }},
+        {"Calendar rejects invalid source dates", [] {
+            StudyClass course;
+            expectThrows<std::invalid_argument>([&] { Calendar().generateClassEvents(course); });
+            course = smallCourse();
+            course.addAssignment(Assignment());
+            expectThrows<std::invalid_argument>([&] { Calendar().generateDeadlineEvents(course); });
+            course = smallCourse();
+            course.addExam(Exam());
+            expectThrows<std::invalid_argument>([&] { Calendar().generateDeadlineEvents(course); });
+        }},
+        {"Weekly query crosses the year and preserves source objects", [] {
+            School school("College");
+            StudyClass course("Winter", 3, Date(2026, 12, 30), Date(2027, 1, 2));
+            course.addClassMeeting(ClassMeeting(WeekDay::Wednesday, Time(8, 0), Time(9, 0)));
+            course.addClassMeeting(ClassMeeting(WeekDay::Saturday, Time(8, 0), Time(9, 0)));
+            course.addExam(Exam("New year exam", Date(2027, 1, 1)));
+            school.addStudyClass(course);
+            auto events = Calendar().getWeeklySchedule(school, Date(2027, 1, 1));
+            CHECK(events.size() == 3);
+            CHECK(events[0].getDate() == Date(2026, 12, 30));
+            CHECK(events[1].getDate() == Date(2027, 1, 1));
+            CHECK(events[2].getDate() == Date(2027, 1, 2));
+            events[0].setTitle("Changed view");
+            CHECK(Calendar().getWeeklySchedule(school, Date(2027, 1, 1))[0].getTitle() == "Winter");
+            CHECK(school.getStudyClasses()[0].getClassMeetings().size() == 2);
         }},
         {"Database open create current table and close", [] {
             Database database;
