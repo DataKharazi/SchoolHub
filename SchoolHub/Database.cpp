@@ -116,22 +116,6 @@ bool Database::execute(const string& sql)
 	return true;
 }
 
-bool Database::createTables()
-{
-	string sql =
-		R"(
-			CREATE TABLE IF NOT EXISTS students
-			(
-				id INTEGER PRIMARY KEY AUTOINCREMENT,
-				name TEXT NOT NULL,
-				previous_gpa REAL NOT NULL DEFAULT 0.0,
-				previous_credits REAL NOT NULL DEFAULT 0.0
-			);
-		)";
-
-	return execute(sql);
-}
-
 string Database::getLastError() const
 {
 	return lastError;

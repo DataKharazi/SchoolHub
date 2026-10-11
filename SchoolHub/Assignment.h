@@ -7,6 +7,7 @@
 */
 
 #pragma once
+#include <cstdint>
 
 #include <string>
 #include <optional>
@@ -24,6 +25,8 @@ enum class AssignmentStatus
 
 class Assignment
 {
+    friend class Database;
+    std::int64_t id = 0; // Database identity; copies represent the same saved entity.
 private:
 	string description;
 	Date startDate;
@@ -32,6 +35,7 @@ private:
 	optional<Grade> grade;
 
 public:
+    std::int64_t getId() const { return id; }
 	Assignment();
 	Assignment(string description, Date startDate, Date dueDate);
 

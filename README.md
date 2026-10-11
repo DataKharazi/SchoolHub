@@ -21,8 +21,10 @@ constructor argument have been removed. `Student::addSchool/getSchools` replace
 direct course ownership. `School::removeStudyClass` accepts a zero-based index
 and returns false for an invalid index without changing the collection.
 Collections continue to return copies, matching the existing value-based design.
-Editing a returned copy does not update its owner; future class management will
-need a deliberate way to modify owned classes. The current dashboard only reads
+Editing a returned copy does not update its owner. Checked `Student::getSchool(index)`
+and `School::getStudyClass(index)` provide references to owned values for editing
+and saving. These references must not be held across changes to their owning
+vectors. The current dashboard only reads
 a selected school. `ConsoleDemo` remains available but is no longer the entry
 workflow. Input and output stay in `ConsoleApp`, outside the domain classes.
 
@@ -119,6 +121,97 @@ The future GUI will need source identity to reliably open an event's originating
 object, especially when titles repeat. These queries preserve events separately
 and do not deduplicate titles or introduce an identity redesign.
 
+## SQLite persistence
+
+`Database` now saves and loads complete student hierarchies in ONE SQLite file.
+Its implementation is split between `Database.cpp` (connection/basic SQL) and
+`DatabasePersistence.cpp` (schema, prepared statements, hierarchy operations).
+SQL stays out of the domain models.
+
+The version 1 schema contains seven source-data tables:
+
+| Table | Parent foreign key | Stored source data |
+| --- | --- | --- |
+| students | none | name, manually stored GPA |
+| schools | student_id -> students.id | name, collection position |
+| study_classes | school_id -> schools.id | name, credits, semester dates, position |
+| assignments | study_class_id -> study_classes.id | description, start/due dates, finished, optional points, position |
+| exams | study_class_id -> study_classes.id | name, exam date, optional points, position |
+| books | study_class_id -> study_classes.id | name, file path, bookmark, position |
+| class_meetings | study_class_id -> study_classes.id | weekday, start/end times, position |
+
+All parent foreign keys are NOT NULL and use ON DELETE CASCADE. Foreign keys
+are enabled on open, and persistence operations refuse to run if enforcement
+has been disabled. Every child has exactly one path to its owning student.
+Loading follows these IDs at every level; names never establish relationships.
+Deleting a student cascades through only that student's hierarchy;
+`deleteSchool(studentId, schoolId)` additionally checks the school's owner.
+
+Dates use separate INTEGER year/month/day columns; times use INTEGER hour/minute
+columns. Weekdays use the existing Monday=0 through Sunday=6 enum values.
+These representations are locale independent. Saving/loading validates dates
+and time components. Non-finite GPA/credits are rejected without imposing a new
+GPA scale. Optional grades use two NULLs for ungraded work or two validated
+point values; a CHECK constraint forbids half-null grades. Percentages, letters,
+assignment status, CalendarEvents, and schedule/query results are never stored.
+
+Each persisted domain type exposes `getId()` returning `std::int64_t`. New
+objects have ID 0; SQLite assigns positive AUTOINCREMENT IDs. Database is a
+friend solely to assign identities and traverse owned values for persistence;
+there are no public ID setters. IDs remain stable across save/load/update and
+are not reused after deletion. They are scoped to a particular database and
+entity type. Copies of saved objects retain their identity; to create a distinct
+entity, construct a new object rather than reusing a saved copy. These IDs give
+future Qt code a stable identity to work with, though CalendarEvent source-ID
+propagation remains a separate task.
+
+Public operations:
+
+```cpp
+Database database;
+if (!database.open("schoolhub.db") || !database.createTables()) {
+    // Report database.getLastError().
+}
+// After a successful open and schema initialization:
+// database.saveStudent(student);        // bool; updates student IDs on success
+// database.loadStudent(student.getId()); // optional<Student>
+// database.loadStudents();              // vector<Student>, ordered by ID
+// database.deleteSchool(studentId, schoolId); // bool, owner-scoped cascade
+// database.deleteStudent(studentId);          // bool, full cascade
+```
+
+`saveStudent(Student&)` saves an authoritative snapshot in BEGIN IMMEDIATE / COMMIT.
+It updates existing rows, inserts new rows, and deletes children omitted from
+that parent's collection. Existing child IDs must still belong to the same
+parent; attempts to graft another student's school, class, or leaf objects are
+rejected. Duplicate saved IDs and stale deleted IDs are also rejected. A private
+working copy receives new IDs; the caller sees them only after COMMIT. Any
+failure rolls back the entire save, including updates and deletions, and leaves
+the caller's original IDs unchanged. Reads use a transaction for a consistent
+snapshot and never return partial hierarchies on error. Collection positions
+preserve source order and stable event ties. All user data uses bound parameters.
+
+Errors are reported through `getLastError()`: writes return false, a failed or
+missing `loadStudent` returns nullopt, and failed `loadStudents` returns an empty
+vector with a nonempty error. An empty successful list has an empty error.
+Operations refuse caller-owned transactions so they cannot accidentally commit
+or roll back unrelated SQL. Database connections are noncopyable.
+
+This is a single-editor snapshot API, without conflict/version tracking. Reload
+after direct deletes before saving an older in-memory snapshot. Raw `execute`
+remains a low-level developer facility and is not an authorization boundary.
+The tests verify that supported hierarchy saves/loads/deletes do not mix student
+data, including when every displayed name is identical.
+
+**Old development database:** a version-0 database containing the early students
+table is rejected without modifying its data. Back it up if needed, then manually
+delete the old development `schoolhub.db` and let `createTables()` recreate it.
+The old previous_gpa/previous_credits columns are replaced by the current model's
+gpa field. There is no automatic data migration. Schema version 1 is recorded in
+PRAGMA user_version; unknown versions are rejected. `schoolhub.db` and SQLite
+WAL/SHM files remain ignored by Git. This milestone does not delete your database
+or connect the interactive console to autosave; that console remains session-only.
+
 ## Automated tests
 
 `SchoolHub.Tests` is a separate console project in `SchoolHub/SchoolHub.slnx`.
@@ -145,14 +238,16 @@ Release is also supported: change both occurrences of `Debug` to `Release`.
 Checks remain active in Release builds; the runner does not use `assert()`.
 Win32 configurations are also available (the solution calls this platform x86).
 
-The 74 cases cover week boundaries/navigation, school-wide event queries,
+The 93 cases cover full hierarchy persistence, student isolation, stable IDs,
+cascading deletion, rollback, schema checks, file reopen, week boundaries/navigation, school-wide event queries,
 semester clipping and stable same-day ordering, points grading and validation, course totals, letter boundaries,
 dates and leap years, times, assignment status, recurring
 meetings, school ownership and safe class removal, course and student collections, optional event times, calendar
 generation and ordering, the 31-meeting/35-event sample, and current database
 operations and errors. SQLite tests use fresh `:memory:` databases, which are
-discarded on close. They never open the application's `schoolhub.db` or create
-database files. Test binaries and intermediate files are covered by the existing
+discarded on close. One durability test creates a uniquely named temporary file
+and removes it after closing both connections. Tests never open the application's
+`schoolhub.db`. Test binaries and intermediate files are covered by the existing
 `bin/` and `obj/` ignore rules.
 
 To add a test, add a named case to the `tests` vector in
@@ -161,6 +256,6 @@ its expression and line, stops that case, and lets the remaining cases run.
 When adding production implementation files, include them in the test project
 as needed; the two projects currently maintain separate source lists.
 
-All 54 tests from before schedule queries are retained, with 20 new cases.
-The database currently only creates the initial `students` table; full model
-persistence is outside this test suite.
+All 74 earlier cases remain; the initial schema smoke test now checks the current
+gpa column. Nineteen persistence cases were added, including a complete round trip
+after discarding the original objects and regeneration of grades and calendars.

@@ -148,6 +148,7 @@
     <ClCompile Include="ConsoleApp.cpp" />
     <ClCompile Include="School.cpp" />
     <ClCompile Include="Database.cpp" />
+    <ClCompile Include="DatabasePersistence.cpp" />
     <ClCompile Include="Date.cpp" />
     <ClCompile Include="Exam.cpp" />
     <ClCompile Include="Grade.cpp" />

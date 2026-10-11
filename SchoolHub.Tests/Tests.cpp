@@ -4,6 +4,11 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <sstream>
+#include <iomanip>
+#include <filesystem>
+#include <chrono>
+#include <random>
 
 #include "../SchoolHub/Student.h"
 #include "../SchoolHub/Calendar.h"
@@ -88,6 +93,91 @@ School querySchool()
     earlier.addExam(Exam("Today exam", Date(2026, 9, 9)));
     school.addStudyClass(earlier);
     return school;
+}
+
+Student persistenceStudent(const std::string& name, int dueDay = 9, double earned = 18)
+{
+    Student student(name, 3.5);
+    for (const std::string& schoolName : {"Kingsborough", "Second school"}) {
+        School school(schoolName);
+        for (const std::string& courseName : {"Data Structures", "Math"}) {
+            StudyClass course(courseName, 3, Date(2026, 9, 1), Date(2026, 9, 30));
+            Assignment homework("Homework", Date(2026, 9, 1), Date(2026, 9, dueDay));
+            homework.setGrade(earned, 20);
+            homework.setFinished(true);
+            course.addAssignment(homework);
+            course.addAssignment(Assignment("Ungraded", Date(2026, 9, 2), Date(2026, 9, 15)));
+            Exam exam("Exam", Date(2026, 9, 11));
+            exam.setGrade(90, 100);
+            course.addExam(exam);
+            course.addExam(Exam("Ungraded exam", Date(2026, 9, 16)));
+            Book book("Textbook", "C:/Books/student's notes.pdf");
+            book.setBookMark(125);
+            course.addBook(book);
+            course.addBook(Book("Reference", "reference.pdf"));
+            course.addClassMeeting(ClassMeeting(WeekDay::Monday, Time(11, 30), Time(12, 45)));
+            course.addClassMeeting(ClassMeeting(WeekDay::Wednesday, Time(11, 30), Time(12, 45)));
+            school.addStudyClass(course);
+        }
+        student.addSchool(school);
+    }
+    return student;
+}
+
+// Compare every source field and collection order without retaining the original objects.
+std::string studentSnapshot(const Student& student, bool includeIds = false)
+{
+    std::ostringstream out;
+    out << std::hexfloat;
+    auto id = [&](std::int64_t value) { if (includeIds) out << " id=" << value; };
+    auto date = [&](Date value) { out << ' ' << value.getYear() << '/' << value.getMonth() << '/' << value.getDay(); };
+    auto grade = [&](std::optional<Grade> value) {
+        if (value) out << " graded " << value->getEarnedPoints() << '/' << value->getMaxPoints();
+        else out << " ungraded";
+    };
+    id(student.getId());
+    out << std::quoted(student.getStudentName()) << ' ' << student.getGPA();
+    for (const auto& school : student.getSchools()) {
+        out << " school " << std::quoted(school.getSchoolName()); id(school.getId());
+        for (const auto& course : school.getStudyClasses()) {
+            out << " course " << std::quoted(course.getClassName()) << ' ' << course.getCredits(); id(course.getId());
+            date(course.getStartDate()); date(course.getEndDate());
+            for (const auto& work : course.getAssignments()) {
+                out << " assignment " << std::quoted(work.getDescription()) << ' ' << work.isFinished(); id(work.getId());
+                date(work.getStartDate()); date(work.getDueDate()); grade(work.getGrade());
+            }
+            for (const auto& exam : course.getExams()) {
+                out << " exam " << std::quoted(exam.getExamName()); id(exam.getId());
+                date(exam.getExamDate()); grade(exam.getGrade());
+            }
+            for (const auto& book : course.getBooks()) {
+                out << " book " << std::quoted(book.getBookName()) << ' ' << std::quoted(book.getFilePath()) << ' ' << book.getBookMark(); id(book.getId());
+            }
+            for (const auto& meeting : course.getClassMeetings()) {
+                out << " meeting " << static_cast<int>(meeting.getWeekDay()) << ' '
+                    << meeting.getStartTime().getHour() << ':' << meeting.getStartTime().getMinute() << ' '
+                    << meeting.getEndTime().getHour() << ':' << meeting.getEndTime().getMinute(); id(meeting.getId());
+            }
+        }
+    }
+    return out.str();
+}
+
+// A test-only SQL assertion: CHECK fails if the predicate is false (or NULL).
+void checkSql(Database& database, const std::string& predicate)
+{
+    CHECK(database.execute("CREATE TEMP TABLE IF NOT EXISTS test_assertion (ok INTEGER NOT NULL CHECK(ok=1));"));
+    CHECK(database.execute("DELETE FROM test_assertion; INSERT INTO test_assertion SELECT (" + predicate + ");"));
+}
+
+void checkRowCounts(Database& database, int students, int schools, int courses, int leaves)
+{
+    checkSql(database, "(SELECT count(*) FROM students) = " + std::to_string(students));
+    checkSql(database, "(SELECT count(*) FROM schools) = " + std::to_string(schools));
+    checkSql(database, "(SELECT count(*) FROM study_classes) = " + std::to_string(courses));
+    for (const std::string& table : {"assignments", "exams", "books", "class_meetings"})
+        checkSql(database, "(SELECT count(*) FROM " + table + ") = " + std::to_string(leaves));
+    checkSql(database, "(SELECT count(*) FROM pragma_foreign_key_check) = 0");
 }
 
 int main()
@@ -875,6 +965,320 @@ int main()
             CHECK(Calendar().getWeeklySchedule(school, Date(2027, 1, 1))[0].getTitle() == "Winter");
             CHECK(school.getStudyClasses()[0].getClassMeetings().size() == 2);
         }},
+        {"Persistence IDs start unsaved and owned access is checked", [] {
+            CHECK(Student().getId() == 0);
+            CHECK(School().getId() == 0);
+            CHECK(StudyClass().getId() == 0);
+            CHECK(Assignment().getId() == 0);
+            CHECK(Exam().getId() == 0);
+            CHECK(Book().getId() == 0);
+            CHECK(ClassMeeting().getId() == 0);
+            Student student;
+            School school;
+            expectThrows<std::out_of_range>([&] { student.getSchool(0); });
+            expectThrows<std::out_of_range>([&] { school.getStudyClass(0); });
+        }},
+        {"Persistence complete round trip restores source and derived behavior", [] {
+            Database database;
+            CHECK(database.open(":memory:")); CHECK(database.createTables());
+            auto student = persistenceStudent("David");
+            const auto expected = studentSnapshot(student);
+            CHECK(database.saveStudent(student));
+            const auto studentId = student.getId();
+            const auto expectedIds = studentSnapshot(student, true);
+            CHECK(studentId > 0);
+            student = Student(); // Discard the entire original hierarchy.
+            auto loaded = database.loadStudent(studentId);
+            CHECK(loaded.has_value());
+            CHECK(studentSnapshot(*loaded) == expected);
+            CHECK(studentSnapshot(*loaded, true) == expectedIds);
+            for (const auto& school : loaded->getSchools()) {
+                CHECK(school.getId() > 0);
+                CHECK(Calendar().getWeeklySchedule(school, Date(2026, 9, 9)).size() == 8);
+                CHECK(Calendar().getUpcomingEvents(school, Date(2026, 9, 9)).size() == 8);
+                for (const auto& course : school.getStudyClasses()) {
+                    CHECK(course.getId() > 0);
+                    auto summary = course.getGradeSummary();
+                    CHECK(summary.has_value());
+                    CHECK(summary->getEarnedPoints() == 108);
+                    CHECK(summary->getMaxPoints() == 120);
+                    CHECK(near(summary->getPercentage(), 90));
+                    CHECK(summary->getLetter() == GradeLetter::A);
+                    CHECK(course.getAssignments()[0].getId() > 0);
+                    CHECK(course.getExams()[0].getId() > 0);
+                    CHECK(course.getBooks()[0].getId() > 0);
+                    CHECK(course.getClassMeetings()[0].getId() > 0);
+                    CHECK(course.getAssignments()[0].getStatus(Date(2026, 10, 1)) == AssignmentStatus::Finished);
+                    CHECK(!course.getAssignments()[1].getGrade());
+                    CHECK(!course.getExams()[1].getGrade());
+                }
+            }
+            checkRowCounts(database, 1, 2, 4, 8);
+        }},
+        {"Persistence saves updates with stable IDs and no duplicate rows", [] {
+            Database database;
+            CHECK(database.open(":memory:")); CHECK(database.createTables());
+            auto student = persistenceStudent("David");
+            CHECK(database.saveStudent(student));
+            const auto firstSnapshot = studentSnapshot(student, true);
+            CHECK(database.saveStudent(student));
+            CHECK(studentSnapshot(student, true) == firstSnapshot);
+            const auto homeworkId = student.getSchool(0).getStudyClass(0).getAssignments()[0].getId();
+            student.setStudentName("Updated"); student.setGPA(3.75);
+            student.getSchool(0).setSchoolName("Updated school");
+            auto& course = student.getSchool(0).getStudyClass(0);
+            course.setAssignmentGrade(0, 21, 20);
+            course.clearExamGrade(0);
+            CHECK(database.saveStudent(student));
+            auto loaded = database.loadStudent(student.getId());
+            CHECK(loaded.has_value());
+            CHECK(studentSnapshot(*loaded, true) == studentSnapshot(student, true));
+            CHECK(loaded->getSchool(0).getStudyClass(0).getAssignments()[0].getId() == homeworkId);
+            CHECK(near(loaded->getSchool(0).getStudyClass(0).getGradeSummary()->getPercentage(), 105));
+            checkRowCounts(database, 1, 2, 4, 8);
+        }},
+        {"Persistence identical names never mix students and student deletion cascades", [] {
+            Database database;
+            CHECK(database.open(":memory:")); CHECK(database.createTables());
+            auto a = persistenceStudent("Same student name", 9, 18);
+            auto b = persistenceStudent("Same student name", 10, 8);
+            CHECK(database.saveStudent(a)); CHECK(database.saveStudent(b));
+            CHECK(a.getId() != b.getId());
+            auto loadedA = database.loadStudent(a.getId());
+            auto loadedB = database.loadStudent(b.getId());
+            CHECK(loadedA.has_value()); CHECK(loadedB.has_value());
+            CHECK(studentSnapshot(*loadedA, true) == studentSnapshot(a, true));
+            CHECK(studentSnapshot(*loadedB, true) == studentSnapshot(b, true));
+            CHECK(loadedA->getSchool(0).getStudyClass(0).getAssignments()[0].getDueDate() == Date(2026, 9, 9));
+            CHECK(loadedB->getSchool(0).getStudyClass(0).getAssignments()[0].getGrade()->getEarnedPoints() == 8);
+            auto all = database.loadStudents();
+            CHECK(database.getLastError().empty()); CHECK(all.size() == 2);
+            CHECK(studentSnapshot(all[0], true) == studentSnapshot(a, true));
+            CHECK(studentSnapshot(all[1], true) == studentSnapshot(b, true));
+            CHECK(database.deleteStudent(a.getId()));
+            CHECK(!database.loadStudent(a.getId()));
+            loadedB = database.loadStudent(b.getId()); CHECK(loadedB.has_value());
+            CHECK(studentSnapshot(*loadedB, true) == studentSnapshot(b, true));
+            checkRowCounts(database, 1, 2, 4, 8);
+            CHECK(database.deleteStudent(b.getId()));
+            checkRowCounts(database, 0, 0, 0, 0);
+        }},
+        {"Persistence school deletion is scoped and cascades only its descendants", [] {
+            Database database;
+            CHECK(database.open(":memory:")); CHECK(database.createTables());
+            auto a = persistenceStudent("A"); auto b = persistenceStudent("B", 10, 8);
+            CHECK(database.saveStudent(a)); CHECK(database.saveStudent(b));
+            const auto schoolId = a.getSchool(0).getId();
+            CHECK(!database.deleteSchool(b.getId(), schoolId));
+            checkRowCounts(database, 2, 4, 8, 16);
+            CHECK(database.deleteSchool(a.getId(), schoolId));
+            auto loadedA = database.loadStudent(a.getId()); CHECK(loadedA.has_value());
+            CHECK(loadedA->getSchools().size() == 1);
+            CHECK(loadedA->getSchool(0).getId() == a.getSchool(1).getId());
+            auto loadedB = database.loadStudent(b.getId()); CHECK(loadedB.has_value());
+            CHECK(studentSnapshot(*loadedB, true) == studentSnapshot(b, true));
+            checkRowCounts(database, 2, 3, 6, 12);
+        }},
+        {"Persistence rejects grafting another student's school class or leaf IDs", [] {
+            Database database;
+            CHECK(database.open(":memory:")); CHECK(database.createTables());
+            auto owner = persistenceStudent("Owner"); CHECK(database.saveStudent(owner));
+            auto ownedSchool = owner.getSchool(0);
+            auto ownedCourse = ownedSchool.getStudyClass(0);
+            for (int kind = 0; kind < 6; ++kind) {
+                Student other("Other", 0);
+                School school("Kingsborough");
+                StudyClass course("Data Structures", 3, Date(2026, 9, 1), Date(2026, 9, 30));
+                if (kind == 0) other.addSchool(ownedSchool);
+                else {
+                    if (kind == 1) course = ownedCourse;
+                    if (kind == 2) course.addAssignment(ownedCourse.getAssignments()[0]);
+                    if (kind == 3) course.addExam(ownedCourse.getExams()[0]);
+                    if (kind == 4) course.addBook(ownedCourse.getBooks()[0]);
+                    if (kind == 5) course.addClassMeeting(ownedCourse.getClassMeetings()[0]);
+                    school.addStudyClass(course); other.addSchool(school);
+                }
+                CHECK(!database.saveStudent(other));
+                CHECK(database.getLastError().find("Ownership mismatch") != std::string::npos);
+                CHECK(other.getId() == 0);
+                checkRowCounts(database, 1, 2, 4, 8);
+                auto loaded = database.loadStudent(owner.getId()); CHECK(loaded.has_value());
+                CHECK(studentSnapshot(*loaded, true) == studentSnapshot(owner, true));
+            }
+        }},
+        {"Persistence rejects duplicate saved IDs and stale deleted snapshots", [] {
+            Database database;
+            CHECK(database.open(":memory:")); CHECK(database.createTables());
+            auto student = persistenceStudent("David"); CHECK(database.saveStudent(student));
+            const auto expected = studentSnapshot(student, true);
+            student.addSchool(student.getSchool(0));
+            CHECK(!database.saveStudent(student));
+            auto loaded = database.loadStudent(student.getId()); CHECK(loaded.has_value());
+            CHECK(studentSnapshot(*loaded, true) == expected);
+            CHECK(database.deleteStudent(student.getId()));
+            CHECK(!database.saveStudent(*loaded));
+            checkRowCounts(database, 0, 0, 0, 0);
+        }},
+        {"Persistence rolls back a late SQL failure without publishing IDs", [] {
+            Database database;
+            CHECK(database.open(":memory:")); CHECK(database.createTables());
+            CHECK(database.execute("CREATE TRIGGER fail_meeting BEFORE INSERT ON class_meetings BEGIN SELECT RAISE(ABORT, 'injected failure'); END;"));
+            auto student = persistenceStudent("David");
+            const auto expected = studentSnapshot(student, true);
+            CHECK(!database.saveStudent(student));
+            CHECK(database.getLastError().find("injected failure") != std::string::npos);
+            CHECK(studentSnapshot(student, true) == expected);
+            checkRowCounts(database, 0, 0, 0, 0);
+            CHECK(database.execute("DROP TRIGGER fail_meeting;"));
+            CHECK(database.saveStudent(student));
+            checkRowCounts(database, 1, 2, 4, 8);
+        }},
+        {"Persistence failed update restores original complete hierarchy", [] {
+            Database database;
+            CHECK(database.open(":memory:")); CHECK(database.createTables());
+            auto student = persistenceStudent("David"); CHECK(database.saveStudent(student));
+            const auto before = studentSnapshot(student, true);
+            CHECK(database.execute("CREATE TRIGGER fail_exam BEFORE UPDATE ON exams BEGIN SELECT RAISE(ABORT, 'update failure'); END;"));
+            student.setStudentName("Should roll back");
+            student.getSchool(0).getStudyClass(0).setAssignmentGrade(0, 0, 20);
+            CHECK(!database.saveStudent(student));
+            auto loaded = database.loadStudent(student.getId()); CHECK(loaded.has_value());
+            CHECK(studentSnapshot(*loaded, true) == before);
+            checkRowCounts(database, 1, 2, 4, 8);
+        }},
+        {"Persistence prunes removed classes within the saved student only", [] {
+            Database database;
+            CHECK(database.open(":memory:")); CHECK(database.createTables());
+            auto a = persistenceStudent("A"); auto b = persistenceStudent("B");
+            CHECK(database.saveStudent(a)); CHECK(database.saveStudent(b));
+            CHECK(a.getSchool(0).removeStudyClass(0));
+            CHECK(database.saveStudent(a));
+            auto loadedA = database.loadStudent(a.getId()); CHECK(loadedA.has_value());
+            CHECK(studentSnapshot(*loadedA, true) == studentSnapshot(a, true));
+            auto loadedB = database.loadStudent(b.getId()); CHECK(loadedB.has_value());
+            CHECK(studentSnapshot(*loadedB, true) == studentSnapshot(b, true));
+            checkRowCounts(database, 2, 4, 7, 14);
+        }},
+        {"Persistence binds quoted Unicode and embedded-NUL names", [] {
+            Database database;
+            CHECK(database.open(":memory:")); CHECK(database.createTables());
+            std::string name = "O'Brien; DROP TABLE students; -- \xC3\xA9";
+            name.push_back('\0'); name += "suffix";
+            auto student = persistenceStudent(name);
+            CHECK(database.saveStudent(student));
+            auto loaded = database.loadStudent(student.getId()); CHECK(loaded.has_value());
+            CHECK(loaded->getStudentName() == name);
+            CHECK(studentSnapshot(*loaded) == studentSnapshot(student));
+            checkRowCounts(database, 1, 2, 4, 8);
+        }},
+        {"Persistence rejects invalid source values atomically", [] {
+            Database database;
+            CHECK(database.open(":memory:")); CHECK(database.createTables());
+            auto student = persistenceStudent("Invalid date");
+            student.getSchool(0).getStudyClass(0).setStartDate(Date());
+            CHECK(!database.saveStudent(student)); CHECK(student.getId() == 0);
+            student = persistenceStudent("Invalid time");
+            student.getSchool(0).getStudyClass(0).addClassMeeting(ClassMeeting(WeekDay::Monday, Time(25, 0), Time(26, 0)));
+            CHECK(!database.saveStudent(student)); CHECK(student.getId() == 0);
+            student = persistenceStudent("Nonfinite GPA");
+            student.setGPA(std::numeric_limits<double>::infinity());
+            CHECK(!database.saveStudent(student));
+            checkRowCounts(database, 0, 0, 0, 0);
+        }},
+        {"Persistence schema enforces foreign keys and paired nullable grades", [] {
+            Database database;
+            CHECK(database.open(":memory:")); CHECK(database.createTables());
+            CHECK(!database.execute("INSERT INTO schools(student_id, position, name) VALUES(999, 0, 'orphan');"));
+            CHECK(!database.execute("INSERT INTO schools(student_id, position, name) VALUES(NULL, 0, 'orphan');"));
+            auto student = persistenceStudent("David"); CHECK(database.saveStudent(student));
+            CHECK(!database.execute("UPDATE assignments SET earned_points=1, max_points=NULL;"));
+            CHECK(!database.execute("UPDATE exams SET earned_points=NULL, max_points=100;"));
+            CHECK(!database.execute("UPDATE assignments SET earned_points=-1;"));
+            CHECK(!database.execute("UPDATE exams SET max_points=0;"));
+            checkSql(database, "(SELECT count(*) FROM assignments WHERE earned_points IS NULL AND max_points IS NULL)=4");
+            checkSql(database, "(SELECT count(*) FROM exams WHERE earned_points IS NULL AND max_points IS NULL)=4");
+            checkSql(database, "(SELECT count(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%')=7");
+        }},
+        {"Persistence detects the old development schema without deleting it", [] {
+            Database database;
+            CHECK(database.open(":memory:"));
+            CHECK(database.execute("CREATE TABLE students(id INTEGER PRIMARY KEY, name TEXT, previous_gpa REAL, previous_credits REAL); INSERT INTO students VALUES(1, 'Keep me', 3.5, 12);"));
+            CHECK(!database.createTables());
+            CHECK(database.getLastError().find("Old development schema") != std::string::npos);
+            checkSql(database, "(SELECT name FROM students WHERE id=1)='Keep me'");
+            checkSql(database, "(SELECT user_version FROM pragma_user_version)=0");
+        }},
+        {"Persistence reports closed uninitialized and missing entities", [] {
+            Database database;
+            Student student("Empty", 0);
+            CHECK(!database.saveStudent(student));
+            CHECK(!database.loadStudent(1));
+            CHECK(database.loadStudents().empty()); CHECK(!database.getLastError().empty());
+            CHECK(!database.deleteStudent(1)); CHECK(!database.deleteSchool(1, 1));
+            CHECK(database.open(":memory:")); CHECK(!database.saveStudent(student));
+            CHECK(database.createTables());
+            CHECK(database.loadStudents().empty()); CHECK(database.getLastError().empty());
+            CHECK(!database.loadStudent(999)); CHECK(!database.getLastError().empty());
+            CHECK(!database.deleteStudent(999)); CHECK(!database.deleteSchool(999, 999));
+            CHECK(database.saveStudent(student)); CHECK(database.getLastError().empty());
+            CHECK(database.loadStudent(student.getId()).has_value());
+        }},
+        {"Persistence schema initialization is idempotent and version checked", [] {
+            Database database;
+            CHECK(database.open(":memory:")); CHECK(database.createTables());
+            auto student = persistenceStudent("David"); CHECK(database.saveStudent(student));
+            CHECK(database.createTables());
+            auto loaded = database.loadStudent(student.getId()); CHECK(loaded.has_value());
+            CHECK(studentSnapshot(*loaded, true) == studentSnapshot(student, true));
+            CHECK(database.execute("PRAGMA user_version=999;"));
+            CHECK(!database.createTables()); CHECK(!database.saveStudent(student));
+        }},
+        {"Persistence survives closing and reopening an isolated database file", [] {
+            struct TemporaryFile {
+                std::filesystem::path path;
+                ~TemporaryFile() { std::error_code error; std::filesystem::remove(path, error); }
+            } file{std::filesystem::temp_directory_path() / ("SchoolHub-persistence-test-"
+                + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count())
+                + "-" + std::to_string(std::random_device{}()) + ".db")};
+            CHECK(!std::filesystem::exists(file.path));
+            std::int64_t id;
+            std::string expected;
+            {
+                Database database;
+                CHECK(database.open(file.path.string())); CHECK(database.createTables());
+                auto student = persistenceStudent("Durable"); CHECK(database.saveStudent(student));
+                id = student.getId(); expected = studentSnapshot(student, true);
+            }
+            {
+                Database database;
+                CHECK(database.open(file.path.string())); CHECK(database.createTables());
+                auto loaded = database.loadStudent(id); CHECK(loaded.has_value());
+                CHECK(studentSnapshot(*loaded, true) == expected);
+            }
+        }},
+        {"Persistence rejects corrupt stored dates without returning partial data", [] {
+            Database database;
+            CHECK(database.open(":memory:")); CHECK(database.createTables());
+            auto a = persistenceStudent("A"); auto b = persistenceStudent("B");
+            CHECK(database.saveStudent(a)); CHECK(database.saveStudent(b));
+            auto examId = b.getSchool(0).getStudyClass(0).getExams()[0].getId();
+            CHECK(database.execute("UPDATE exams SET exam_month=2, exam_day=30 WHERE id=" + std::to_string(examId) + ";"));
+            CHECK(!database.loadStudent(b.getId())); CHECK(!database.getLastError().empty());
+            CHECK(database.loadStudents().empty()); CHECK(!database.getLastError().empty());
+            CHECK(database.loadStudent(a.getId()).has_value());
+        }},
+        {"Persistence refuses disabled foreign keys and caller transactions", [] {
+            Database database;
+            CHECK(database.open(":memory:")); CHECK(database.createTables());
+            Student student("New", 0);
+            CHECK(database.execute("PRAGMA foreign_keys=OFF;"));
+            CHECK(!database.saveStudent(student)); CHECK(!database.loadStudent(1));
+            CHECK(database.execute("PRAGMA foreign_keys=ON; BEGIN; INSERT INTO students(name) VALUES('Caller');"));
+            CHECK(!database.saveStudent(student)); CHECK(!database.createTables());
+            CHECK(database.execute("COMMIT;")); // Refusal must not roll back the caller's work.
+            checkSql(database, "(SELECT count(*) FROM students WHERE name='Caller')=1");
+            CHECK(student.getId() == 0);
+        }},
         {"Database open create current table and close", [] {
             Database database;
             CHECK(!database.isOpen());
@@ -883,7 +1287,7 @@ int main()
             CHECK(database.createTables());
             CHECK(database.createTables());
             CHECK(database.execute("INSERT INTO students (name) VALUES ('Test student');"));
-            CHECK(database.execute("SELECT id, name, previous_gpa, previous_credits FROM students;"));
+            CHECK(database.execute("SELECT id, name, gpa FROM students;"));
             CHECK(database.getLastError().empty());
             database.close();
             CHECK(!database.isOpen());

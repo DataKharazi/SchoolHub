@@ -7,6 +7,7 @@
 */
 
 #pragma once
+#include <cstdint>
 
 #include <string>
 #include <vector>
@@ -16,12 +17,15 @@ using namespace std;
 
 class Student
 {
+    friend class Database;
+    std::int64_t id = 0; // Database identity; copies represent the same saved entity.
 private:
 	string studentName;
 	double gpa;
 	vector<School> schools;
 
 public:
+    std::int64_t getId() const { return id; }
 	Student();
 	Student(string studentName, double gpa);
 
@@ -34,4 +38,7 @@ public:
 	void addSchool(School school);
 
 	vector<School> getSchools() const;
+	// Checked access to owned values for editing and then saving the hierarchy.
+	School& getSchool(size_t index) { return schools.at(index); }
+	const School& getSchool(size_t index) const { return schools.at(index); }
 };

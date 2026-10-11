@@ -7,6 +7,7 @@
 */
 
 #pragma once
+#include <cstdint>
 
 #include <string>
 #include <vector>
@@ -24,6 +25,8 @@ using namespace std;
 
 class StudyClass
 {
+    friend class Database;
+    std::int64_t id = 0; // Database identity; copies represent the same saved entity.
 private:
 	string className;
 	double credits;
@@ -37,6 +40,7 @@ private:
 	vector<ClassMeeting> classMeetings;
 
 public:
+    std::int64_t getId() const { return id; }
 	StudyClass();
 	StudyClass(string className,
 		double credits, Date startDate, Date endDate);

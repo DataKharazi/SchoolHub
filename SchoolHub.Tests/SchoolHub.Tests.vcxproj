@@ -150,6 +150,7 @@
     <ClCompile Include="..\SchoolHub\CalendarEvent.cpp" />
     <ClCompile Include="..\SchoolHub\ClassMeeting.cpp" />
     <ClCompile Include="..\SchoolHub\Database.cpp" />
+    <ClCompile Include="..\SchoolHub\DatabasePersistence.cpp" />
     <ClCompile Include="..\SchoolHub\Date.cpp" />
     <ClCompile Include="..\SchoolHub\Exam.cpp" />
     <ClCompile Include="..\SchoolHub\Grade.cpp" />

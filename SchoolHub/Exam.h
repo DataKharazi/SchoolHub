@@ -7,6 +7,7 @@
 */
 
 #pragma once
+#include <cstdint>
 
 #include <string>
 #include <optional>
@@ -17,12 +18,15 @@ using namespace std;
 
 class Exam
 {
+    friend class Database;
+    std::int64_t id = 0; // Database identity; copies represent the same saved entity.
 private:
 	string examName;
 	Date examDate;
 	optional<Grade> grade;
 
 public:
+    std::int64_t getId() const { return id; }
 	Exam();
 	Exam(string examName, Date examDate);
 

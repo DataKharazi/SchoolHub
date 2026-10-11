@@ -7,18 +7,22 @@
 */
 
 #pragma once
+#include <cstdint>
 
 #include <string>
 using namespace std;
 
 class Book
 {
+    friend class Database;
+    std::int64_t id = 0; // Database identity; copies represent the same saved entity.
 private:
 	string bookName;
 	string filePath;
 	int bookMark;
 
 public:
+    std::int64_t getId() const { return id; }
 	Book();
 	Book(string bookName, string filePath);
 
