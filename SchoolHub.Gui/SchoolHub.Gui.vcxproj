@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64"><Configuration>Debug</Configuration><Platform>x64</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{F8FDD1E5-792B-4E36-934A-AEB7B9727E70}</ProjectGuid>
+    <RootNamespace>SchoolHubGui</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <UseDebugLibraries Condition="'$(Configuration)'=='Debug'">true</UseDebugLibraries>
+    <UseDebugLibraries Condition="'$(Configuration)'=='Release'">false</UseDebugLibraries>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <Import Project="Qt.local.props" Condition="Exists('Qt.local.props')" />
+  <PropertyGroup>
+    <QtRoot Condition="'$(QtRoot)'==''">$(QTDIR)</QtRoot>
+    <QtSuffix Condition="'$(Configuration)'=='Debug'">d</QtSuffix>
+    <QtDeployMode Condition="'$(Configuration)'=='Debug'">--debug</QtDeployMode>
+    <QtDeployMode Condition="'$(Configuration)'=='Release'">--release</QtDeployMode>
+    <OutDir>$(ProjectDir)bin\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(ProjectDir)obj\$(Platform)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <ConformanceMode>true</ConformanceMode>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <AdditionalOptions>/utf-8 /Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
+      <PreprocessorDefinitions>QT_WIDGETS_LIB;QT_GUI_LIB;QT_CORE_LIB;NOMINMAX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(QtRoot)\include;$(QtRoot)\include\QtWidgets;$(QtRoot)\include\QtGui;$(QtRoot)\include\QtCore;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <AdditionalLibraryDirectories>$(QtRoot)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Qt6Widgets$(QtSuffix).lib;Qt6Gui$(QtSuffix).lib;Qt6Core$(QtSuffix).lib;Qt6EntryPoint$(QtSuffix).lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="MainWindow.cpp" />
+    <ClInclude Include="MainWindow.h" />
+    <ProjectReference Include="..\SchoolHub.Core\SchoolHub.Core.vcxproj">
+      <Project>{7E1B78C0-0BEE-493C-A945-0D78AEB5F426}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Target Name="CheckQt" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(Platform)'!='x64'" Text="SchoolHub.Gui requires the x64 Qt kit." />
+    <Error Condition="!Exists('$(QtRoot)\include\QtWidgets\QApplication')" Text="Set QtRoot to a Qt 6 MSVC x64 kit in Qt.local.props, QTDIR, or /p:QtRoot. See README." />
+  </Target>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Target Name="DeployQt" AfterTargets="Build" Condition="'$(DesignTimeBuild)'!='true'">
+    <Exec Command="&quot;$(QtRoot)\bin\windeployqt.exe&quot; $(QtDeployMode) --no-translations --no-compiler-runtime --no-opengl-sw &quot;$(TargetPath)&quot;" />
+  </Target>
+</Project>
