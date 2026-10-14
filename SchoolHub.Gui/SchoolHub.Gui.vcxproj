@@ -46,7 +46,9 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MainWindow.cpp" />
+    <ClCompile Include="AddClassDialog.cpp" />
     <ClInclude Include="MainWindow.h" />
+    <ClInclude Include="AddClassDialog.h" />
     <ProjectReference Include="..\SchoolHub.Core\SchoolHub.Core.vcxproj">
       <Project>{7E1B78C0-0BEE-493C-A945-0D78AEB5F426}</Project>
     </ProjectReference>

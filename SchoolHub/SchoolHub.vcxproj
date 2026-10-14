@@ -1,5 +1,5 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -24,6 +24,7 @@
     <ProjectGuid>{3ee9f706-8835-45df-a2b4-f459f4348843}</ProjectGuid>
     <RootNamespace>SchoolHub</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>SchoolHub.Console</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -139,45 +140,20 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Assignment.cpp" />
-    <ClCompile Include="Book.cpp" />
-    <ClCompile Include="Calendar.cpp" />
-    <ClCompile Include="CalendarEvent.cpp" />
-    <ClCompile Include="ClassMeeting.cpp" />
     <ClCompile Include="ConsoleDemo.cpp" />
     <ClCompile Include="ConsoleApp.cpp" />
-    <ClCompile Include="School.cpp" />
-    <ClCompile Include="Database.cpp" />
-    <ClCompile Include="DatabasePersistence.cpp" />
-    <ClCompile Include="Date.cpp" />
-    <ClCompile Include="Exam.cpp" />
-    <ClCompile Include="Grade.cpp" />
-    <ClCompile Include="External\SQLite\sqlite3.c" />
     <ClCompile Include="SchoolHub.cpp" />
-    <ClCompile Include="Student.cpp" />
-    <ClCompile Include="StudyClass.cpp" />
-    <ClCompile Include="Time.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Assignment.h" />
-    <ClInclude Include="Book.h" />
-    <ClInclude Include="Calendar.h" />
-    <ClInclude Include="CalendarEvent.h" />
-    <ClInclude Include="ClassMeeting.h" />
     <ClInclude Include="ConsoleDemo.h" />
     <ClInclude Include="ConsoleApp.h" />
-    <ClInclude Include="School.h" />
-    <ClInclude Include="Database.h" />
-    <ClInclude Include="Date.h" />
-    <ClInclude Include="Exam.h" />
-    <ClInclude Include="Grade.h" />
-    <ClInclude Include="External\SQLite\sqlite3.h" />
-    <ClInclude Include="Student.h" />
-    <ClInclude Include="StudyClass.h" />
-    <ClInclude Include="Time.h" />
-    <ClInclude Include="WeekDay.h" />
   </ItemGroup>
-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
+  <ItemGroup>
+    <ProjectReference Include="../SchoolHub.Core/SchoolHub.Core.vcxproj">
+      <Project>{7E1B78C0-0BEE-493C-A945-0D78AEB5F426}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -144,41 +144,15 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Tests.cpp" />
-    <ClCompile Include="..\SchoolHub\Assignment.cpp" />
-    <ClCompile Include="..\SchoolHub\Book.cpp" />
-    <ClCompile Include="..\SchoolHub\Calendar.cpp" />
-    <ClCompile Include="..\SchoolHub\CalendarEvent.cpp" />
-    <ClCompile Include="..\SchoolHub\ClassMeeting.cpp" />
-    <ClCompile Include="..\SchoolHub\Database.cpp" />
-    <ClCompile Include="..\SchoolHub\DatabasePersistence.cpp" />
-    <ClCompile Include="..\SchoolHub\Date.cpp" />
-    <ClCompile Include="..\SchoolHub\Exam.cpp" />
-    <ClCompile Include="..\SchoolHub\Grade.cpp" />
-    <ClCompile Include="..\SchoolHub\External\SQLite\sqlite3.c" />
-    <ClCompile Include="..\SchoolHub\Student.cpp" />
-    <ClCompile Include="..\SchoolHub\School.cpp" />
-    <ClCompile Include="..\SchoolHub\StudyClass.cpp" />
-    <ClCompile Include="..\SchoolHub\Time.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\SchoolHub\Assignment.h" />
-    <ClInclude Include="..\SchoolHub\Book.h" />
-    <ClInclude Include="..\SchoolHub\Calendar.h" />
-    <ClInclude Include="..\SchoolHub\CalendarEvent.h" />
-    <ClInclude Include="..\SchoolHub\ClassMeeting.h" />
-    <ClInclude Include="..\SchoolHub\ConsoleDemo.h" />
-    <ClInclude Include="..\SchoolHub\Database.h" />
-    <ClInclude Include="..\SchoolHub\Date.h" />
-    <ClInclude Include="..\SchoolHub\Exam.h" />
-    <ClInclude Include="..\SchoolHub\Grade.h" />
-    <ClInclude Include="..\SchoolHub\External\SQLite\sqlite3.h" />
-    <ClInclude Include="..\SchoolHub\Student.h" />
-    <ClInclude Include="..\SchoolHub\School.h" />
-    <ClInclude Include="..\SchoolHub\StudyClass.h" />
-    <ClInclude Include="..\SchoolHub\Time.h" />
-    <ClInclude Include="..\SchoolHub\WeekDay.h" />
   </ItemGroup>
-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
+  <ItemGroup>
+    <ProjectReference Include="../SchoolHub.Core/SchoolHub.Core.vcxproj">
+      <Project>{7E1B78C0-0BEE-493C-A945-0D78AEB5F426}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

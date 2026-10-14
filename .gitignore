@@ -363,6 +363,7 @@ MigrationBackup/
 FodyWeavers.xsd
 
 # SchoolHub local database
+/SchoolHub.Gui/Qt.local.props
 schoolhub.db
 *.db-wal
 *.db-shm

@@ -5,4 +5,8 @@
   </Configurations>
   <Project Path="SchoolHub.vcxproj" Id="3ee9f706-8835-45df-a2b4-f459f4348843" />
   <Project Path="../SchoolHub.Tests/SchoolHub.Tests.vcxproj" Id="9c8a3b18-241f-443a-87ab-ae17c8b0244a" />
+  <Project Path="../SchoolHub.Core/SchoolHub.Core.vcxproj" Id="7e1b78c0-0bee-493c-a945-0d78aeb5f426" />
+  <Project Path="../SchoolHub.Gui/SchoolHub.Gui.vcxproj" Id="f8fdd1e5-792b-4e36-934a-aeb7b9727e70">
+    <Build Solution="*|x86" Project="false" />
+  </Project>
 </Solution>
